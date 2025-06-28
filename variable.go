@@ -157,29 +157,29 @@ func (v *Variable) Hash() string {
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
-func (v *Variable) ReadValue() any {
+func (v *Variable) ReadValue() (any, *time.Time) {
 	switch v.DataType {
 	case DataTypeFloat32, DataTypeFloat64, DataTypeInt8, DataTypeUInt8, DataTypeInt16, DataTypeUInt16,
 		DataTypeInt32, DataTypeUInt32, DataTypeInt64, DataTypeUInt64:
 		if cache, ok := v.Cache.(*Cache[float64]); ok {
-			return cache.Value()
+			return cache.Value(), cache.Timestamp()
 		}
 	case DataTypeBool:
 		if cache, ok := v.Cache.(*Cache[bool]); ok {
-			return cache.Value()
+			return cache.Value(), cache.Timestamp()
 		}
 	case DataTypeString:
 		if cache, ok := v.Cache.(*Cache[string]); ok {
-			return cache.Value()
+			return cache.Value(), cache.Timestamp()
 		}
 	case DataTypeByte, DataTypeChar, DataTypeWord, DataTypeDWord:
 		if cache, ok := v.Cache.(*Cache[[]byte]); ok {
-			return cache.Value()
+			return cache.Value(), cache.Timestamp()
 		}
 	default:
-		return nil
+		return nil, nil
 	}
-	return nil // Unsupported data type or cache type mismatch
+	return nil, nil // Unsupported data type or cache type mismatch
 }
 
 func (v *Variable) WriteValue(value any, t *time.Time) error {
