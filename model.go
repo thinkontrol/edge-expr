@@ -2,13 +2,55 @@ package edgeexpr
 
 import (
 	"crypto/md5"
+	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
+
+	"github.com/expr-lang/expr"
 )
 
 type Model struct {
 	Connections map[string]string    `json:"connections"` // map of connection name to connection type
 	Variables   map[string]*Variable `json:"variables"`   // map of variable name to Variable struct
+}
+
+func (m *Model) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, m); err != nil {
+		return err
+	}
+	// Initialize maps if they are nil
+	if m.Connections == nil {
+		m.Connections = make(map[string]string)
+	}
+	if m.Variables == nil {
+		m.Variables = make(map[string]*Variable)
+	}
+
+	env := make(map[string]any)
+	for key, variable := range m.Variables {
+		if variable.Cache != nil {
+			env[key] = variable.Cache
+		}
+	}
+
+	var errs []string
+	for key, variable := range m.Variables {
+		if variable.Connection == "" && variable.Script != "" {
+			program, err := expr.Compile(variable.Script, expr.Env(env))
+			if err != nil {
+				errs = append(errs, fmt.Errorf("%s: %v", key, err).Error())
+			} else {
+				variable.Program = program
+			}
+		}
+	}
+	if len(errs) > 0 {
+		sort.Strings(errs)
+		return fmt.Errorf("Script errors:\n%s", strings.Join(errs, "\n"))
+	}
+
+	return nil
 }
 
 func (m *Model) Hash() string {
