@@ -78,7 +78,7 @@ func ParseDataType(dt string) (DataType, int, error) {
 	return "", 0, fmt.Errorf("unknown data type: %s", dt)
 }
 
-func ConvertToFloat64(value interface{}) (float64, error) {
+func ConvertToFloat64(value any) (float64, error) {
 	switch v := value.(type) {
 	case float64:
 		return v, nil
@@ -109,7 +109,7 @@ func ConvertToFloat64(value interface{}) (float64, error) {
 	}
 }
 
-func (dt DataType) ConvertFromAny(value interface{}) (interface{}, error) {
+func (dt DataType) ConvertFromAny(value any) (any, error) {
 	switch dt {
 	case DataTypeBool:
 		switch v := value.(type) {
@@ -762,7 +762,7 @@ func (dt DataType) ConvertFromAny(value interface{}) (interface{}, error) {
 	}
 }
 
-func ConvertToBytes(value interface{}) ([]byte, error) {
+func ConvertToBytes(value any) ([]byte, error) {
 	switch v := value.(type) {
 	case []byte:
 		return v, nil
