@@ -157,62 +157,69 @@ func (v *Variable) Hash() string {
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
-func (v *Variable) ReadValue() (any, *time.Time) {
-	switch v.DataType {
-	case DataTypeFloat32, DataTypeFloat64, DataTypeInt8, DataTypeUInt8, DataTypeInt16, DataTypeUInt16,
-		DataTypeInt32, DataTypeUInt32, DataTypeInt64, DataTypeUInt64:
-		if cache, ok := v.Cache.(*Cache[float64]); ok {
-			return cache.Value(), cache.Timestamp()
-		}
-	case DataTypeBool:
-		if cache, ok := v.Cache.(*Cache[bool]); ok {
-			return cache.Value(), cache.Timestamp()
-		}
-	case DataTypeString:
-		if cache, ok := v.Cache.(*Cache[string]); ok {
-			return cache.Value(), cache.Timestamp()
-		}
-	case DataTypeByte, DataTypeChar, DataTypeWord, DataTypeDWord:
-		if cache, ok := v.Cache.(*Cache[[]byte]); ok {
-			return cache.Value(), cache.Timestamp()
-		}
-	default:
-		return nil, nil
-	}
-	return nil, nil // Unsupported data type or cache type mismatch
-}
-
-func (v *Variable) Changed() bool {
+func (v *Variable) ReadValue() (any, bool, *time.Time) {
+	var changed bool
 	switch v.DataType {
 	case DataTypeFloat32, DataTypeFloat64, DataTypeInt8, DataTypeUInt8, DataTypeInt16, DataTypeUInt16,
 		DataTypeInt32, DataTypeUInt32, DataTypeInt64, DataTypeUInt64:
 		if cache, ok := v.Cache.(*Cache[float64]); ok {
 			if v.DiffThreshold != nil {
-				v, _ := cache.DiffExceeds(*v.DiffThreshold)
-				return v
+				changed, _ = cache.DiffExceeds(*v.DiffThreshold)
 			}
 			if v.PctThreshold != nil {
-				v, _ := cache.PctChangeExceeds(*v.PctThreshold)
-				return v
+				changed, _ = cache.PctChangeExceeds(*v.PctThreshold)
 			}
+			return cache.Value(), changed, cache.Timestamp()
 		}
 	case DataTypeBool:
 		if cache, ok := v.Cache.(*Cache[bool]); ok {
-			return cache.Changed()
+			return cache.Value(), cache.Changed(), cache.Timestamp()
 		}
 	case DataTypeString:
 		if cache, ok := v.Cache.(*Cache[string]); ok {
-			return cache.Changed()
+			return cache.Value(), cache.Changed(), cache.Timestamp()
 		}
 	case DataTypeByte, DataTypeChar, DataTypeWord, DataTypeDWord:
 		if cache, ok := v.Cache.(*Cache[[]byte]); ok {
-			return cache.Changed()
+			return cache.Value(), cache.Changed(), cache.Timestamp()
 		}
 	default:
-		return false
+		return nil, false, nil
 	}
-	return false
+	return nil, false, nil // Unsupported data type or cache type mismatch
 }
+
+// func (v *Variable) Changed() bool {
+// 	switch v.DataType {
+// 	case DataTypeFloat32, DataTypeFloat64, DataTypeInt8, DataTypeUInt8, DataTypeInt16, DataTypeUInt16,
+// 		DataTypeInt32, DataTypeUInt32, DataTypeInt64, DataTypeUInt64:
+// 		if cache, ok := v.Cache.(*Cache[float64]); ok {
+// 			if v.DiffThreshold != nil {
+// 				v, _ := cache.DiffExceeds(*v.DiffThreshold)
+// 				return v
+// 			}
+// 			if v.PctThreshold != nil {
+// 				v, _ := cache.PctChangeExceeds(*v.PctThreshold)
+// 				return v
+// 			}
+// 		}
+// 	case DataTypeBool:
+// 		if cache, ok := v.Cache.(*Cache[bool]); ok {
+// 			return cache.Changed()
+// 		}
+// 	case DataTypeString:
+// 		if cache, ok := v.Cache.(*Cache[string]); ok {
+// 			return cache.Changed()
+// 		}
+// 	case DataTypeByte, DataTypeChar, DataTypeWord, DataTypeDWord:
+// 		if cache, ok := v.Cache.(*Cache[[]byte]); ok {
+// 			return cache.Changed()
+// 		}
+// 	default:
+// 		return false
+// 	}
+// 	return false
+// }
 
 func (v *Variable) WriteValue(value any, t *time.Time) error {
 	switch v.DataType {
