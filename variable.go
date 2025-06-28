@@ -157,7 +157,7 @@ func (v *Variable) Hash() string {
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
-func (v *Variable) ReadValue() (any, bool, *time.Time) {
+func (v *Variable) Read() (any, bool, *time.Time) {
 	var changed bool
 	switch v.DataType {
 	case DataTypeFloat32, DataTypeFloat64, DataTypeInt8, DataTypeUInt8, DataTypeInt16, DataTypeUInt16,
