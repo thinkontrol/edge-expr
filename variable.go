@@ -1,0 +1,238 @@
+package edgeexpr
+
+import (
+	"crypto/md5"
+	"encoding/json"
+	"fmt"
+	"time"
+)
+
+type Variable struct {
+	Key           string   `json:"key"`
+	Name          string   `json:"name"`
+	Unit          string   `json:"unit"`
+	Connection    string   `json:"connection"`
+	Address       string   `json:"address"`
+	Script        string   `json:"script"`
+	DiffThreshold *float64 `json:"diff_threshold,omitempty"` // Optional threshold for change detection, in the same unit as the variable
+	PctThreshold  *float64 `json:"pct_threshold,omitempty"`  // Optional percentage threshold for change detection, in the same unit as the variable
+	Writable      bool     `json:"writable,omitempty"`       // Optional flag to indicate if the variable is writable
+	AsTag         bool     `json:"as_tag,omitempty"`         // Optional flag to indicate if the variable should be treated as a tag
+	AsEvent       bool     `json:"as_event,omitempty"`       // Optional flag to indicate if the variable should be treated as an event
+
+	DataType      DataType
+	Bytes         int
+	PublishCycle  *time.Duration
+	CacheDuration *time.Duration // Store cache duration instead of cache instance
+
+	Cache any
+
+	// Cache instances can be created externally when needed
+	// This allows the Variable to be non-generic while still supporting caching
+}
+
+func (v *Variable) MarshalJSON() ([]byte, error) {
+	type Alias Variable
+
+	// Prepare the auxiliary struct with string representations
+	aux := &struct {
+		*Alias
+		DataTypeStr      string `json:"data_type"`
+		PublishCycleStr  string `json:"publish_cycle,omitempty"`
+		CacheDurationStr string `json:"cache_duration,omitempty"`
+	}{
+		Alias:       (*Alias)(v),
+		DataTypeStr: string(v.DataType),
+	}
+
+	// Convert PublishCycle to string if it exists
+	if v.PublishCycle != nil {
+		aux.PublishCycleStr = v.PublishCycle.String()
+	}
+
+	// Convert cache duration to string if cache exists
+	if v.CacheDuration != nil {
+		aux.CacheDurationStr = v.CacheDuration.String()
+	}
+
+	return json.Marshal(aux)
+}
+
+func (v *Variable) UnmarshalJSON(data []byte) error {
+	type Alias Variable
+	aux := &struct {
+		*Alias
+		DataTypeStr      string `json:"data_type"`
+		PublishCycleStr  string `json:"publish_cycle"`
+		CacheDurationStr string `json:"cache_duration"`
+	}{
+		Alias: (*Alias)(v),
+	}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	var err error
+	v.DataType, v.Bytes, err = ParseDataType(aux.DataTypeStr)
+	if v.Connection != "" && err != nil {
+		return err
+	}
+
+	if v.AsTag && v.DataType != DataTypeString {
+		return fmt.Errorf("variable %s with data type %s cannot be used as a tag", v.Key, v.DataType)
+	}
+	if v.AsEvent && v.DataType != DataTypeBool {
+		return fmt.Errorf("variable %s with data type %s cannot be used as an event", v.Key, v.DataType)
+	}
+
+	// Parse PublishCycle to time.Duration and set publishCycle
+	if aux.PublishCycleStr != "" {
+		if duration, err := time.ParseDuration(aux.PublishCycleStr); err == nil {
+			v.PublishCycle = &duration
+		} else {
+			return fmt.Errorf("invalid publish_cycle format: %v", err)
+		}
+	}
+	// Parse Cache to time.Duration and set cache duration
+	if aux.CacheDurationStr != "" {
+		if duration, err := time.ParseDuration(aux.CacheDurationStr); err == nil {
+			v.CacheDuration = &duration
+		} else {
+			return fmt.Errorf("invalid cache format: %v", err)
+		}
+	} else {
+		defaultDuration := time.Minute
+		v.CacheDuration = &defaultDuration // Default cache duration if not specified
+	}
+	v.Cache = v.createCache() // Create cache instance based on DataType and CacheDuration
+	return nil
+}
+
+func (v *Variable) Hash() string {
+	// Implement a hash function to generate a unique identifier for the variable
+	hash := md5.New()
+	hash.Write([]byte(v.Key))
+	hash.Write([]byte(v.Name))
+	hash.Write([]byte(v.Unit))
+	hash.Write([]byte(v.Connection))
+	hash.Write([]byte(v.Address))
+	hash.Write([]byte(v.Script))
+	hash.Write([]byte(v.DataType))
+	if v.DiffThreshold != nil {
+		hash.Write([]byte(fmt.Sprintf("%0.8f", *v.DiffThreshold)))
+	} else {
+		hash.Write([]byte("nil"))
+	}
+	if v.PctThreshold != nil {
+		hash.Write([]byte(fmt.Sprintf("%0.8f", *v.PctThreshold)))
+	} else {
+		hash.Write([]byte("nil"))
+	}
+	if v.CacheDuration != nil {
+		hash.Write([]byte(v.CacheDuration.String()))
+	} else {
+		hash.Write([]byte("nil"))
+	}
+	if v.Writable {
+		hash.Write([]byte("true"))
+	} else {
+		hash.Write([]byte("false"))
+	}
+	if v.PublishCycle != nil {
+		hash.Write([]byte(v.PublishCycle.String()))
+	} else {
+		hash.Write([]byte("nil"))
+	}
+	if v.AsTag {
+		hash.Write([]byte("true"))
+	} else {
+		hash.Write([]byte("false"))
+	}
+	if v.AsEvent {
+		hash.Write([]byte("true"))
+	} else {
+		hash.Write([]byte("false"))
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil))
+}
+
+func (v *Variable) WriteValue(value interface{}, t *time.Time) error {
+	switch v.DataType {
+	case DataTypeFloat32, DataTypeFloat64, DataTypeInt8, DataTypeUInt8, DataTypeInt16, DataTypeUInt16,
+		DataTypeInt32, DataTypeUInt32, DataTypeInt64, DataTypeUInt64:
+		floatValue, err := ConvertToFloat64(value)
+		if err != nil {
+			return err
+		}
+		cache, ok := v.Cache.(*Cache[float64])
+		if !ok {
+			return fmt.Errorf("cache type mismatch for variable %s, expected Cache[float64]", v.Key)
+		}
+		cache.AddPoint(floatValue, t)
+	case DataTypeBool:
+		boolValue, err := v.DataType.ConvertFromAny(value)
+		if err != nil {
+			return fmt.Errorf("failed to convert value to bool for variable %s: %v", v.Key, err)
+		}
+		cache, ok := v.Cache.(*Cache[bool])
+		if !ok {
+			return fmt.Errorf("cache type mismatch for variable %s, expected Cache[bool]", v.Key)
+		}
+		cache.AddPoint(boolValue.(bool), t)
+	case DataTypeString:
+		stringValue, err := v.DataType.ConvertFromAny(value)
+		if err != nil {
+			return fmt.Errorf("failed to convert value to string for variable %s: %v", v.Key, err)
+		}
+		cache, ok := v.Cache.(*Cache[string])
+		if !ok {
+			return fmt.Errorf("cache type mismatch for variable %s, expected Cache[string]", v.Key)
+		}
+		cache.AddPoint(stringValue.(string), t)
+	case DataTypeByte, DataTypeChar, DataTypeWord, DataTypeDWord:
+		_bytesValue, err := v.DataType.ConvertFromAny(value)
+		if err != nil {
+			return fmt.Errorf("failed to convert value to bytes for variable %s: %v", v.Key, err)
+		}
+		bytesValue, err := ConvertToBytes(_bytesValue)
+		if err != nil {
+			return fmt.Errorf("failed to convert value to bytes for variable %s: %v", v.Key, err)
+		}
+		cache, ok := v.Cache.(*Cache[[]byte])
+		if !ok {
+			return fmt.Errorf("cache type mismatch for variable %s, expected Cache[[]byte]", v.Key)
+		}
+		cache.AddPoint(bytesValue, t)
+	default:
+		return fmt.Errorf("unsupported data type %s for writing value", v.DataType)
+	}
+	return nil
+}
+
+func (v *Variable) createCache() any {
+	// 根据 DataType 创建相应类型的缓存
+	switch v.DataType {
+	case DataTypeFloat32, DataTypeFloat64, DataTypeInt8, DataTypeUInt8, DataTypeInt16, DataTypeUInt16,
+		DataTypeInt32, DataTypeUInt32, DataTypeInt64, DataTypeUInt64:
+		if v.CacheDuration != nil {
+			return NewCache[float64](*v.CacheDuration)
+		}
+		return NewCache[float64](time.Minute)
+	case DataTypeBool:
+		if v.CacheDuration != nil {
+			return NewCache[bool](*v.CacheDuration)
+		}
+		return NewCache[bool](time.Minute)
+	case DataTypeString:
+		if v.CacheDuration != nil {
+			return NewCache[string](*v.CacheDuration)
+		}
+		return NewCache[string](time.Minute)
+	case DataTypeByte, DataTypeChar, DataTypeWord, DataTypeDWord:
+		if v.CacheDuration != nil {
+			return NewCache[[]byte](*v.CacheDuration)
+		}
+		return NewCache[[]byte](time.Minute)
+	default:
+		return nil // Unsupported data type for caching
+	}
+}

@@ -36,6 +36,17 @@ func (c *Cache[T]) Value() T {
 	return c.Points[len(c.Points)-1].Value
 }
 
+func (c *Cache[T]) Latest() T {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	var zeroValue T
+	if len(c.Points) == 0 {
+		return zeroValue
+	}
+	return c.Points[len(c.Points)-1].Value
+}
+
 // Timestamp returns the timestamp of the latest value
 func (c *Cache[T]) Timestamp() *time.Time {
 	if c == nil {
@@ -620,10 +631,18 @@ func (c *Cache[T]) AddPoint(value T, timestamp *time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// 检查并清理过期的点
-	c.cleanExpiredPointsUnsafe()
+	// 检查是否已经存在相同timestamp的point
+	for i, point := range c.Points {
+		if point.Timestamp != nil && timestamp != nil && point.Timestamp.Equal(*timestamp) {
+			// 如果存在相同的时间戳，更新值并返回
+			c.Points[i].Value = value
+			c.cleanExpiredPointsUnsafe()
+			return
+		}
+	}
 
 	c.Points = append(c.Points, Point[T]{Value: value, Timestamp: timestamp})
+	c.cleanExpiredPointsUnsafe()
 }
 
 func (c *Cache[T]) cleanExpiredPointsUnsafe() {
