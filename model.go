@@ -36,6 +36,9 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 
 	var errs []string
 	for key, variable := range m.Variables {
+		if key != variable.Key {
+			errs = append(errs, fmt.Sprintf("Variable key mismatch: %s != %s", key, variable.Key))
+		}
 		if variable.Connection == "" && variable.Script != "" {
 			program, err := expr.Compile(variable.Script, expr.Env(env))
 			if err != nil {
