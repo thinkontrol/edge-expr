@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/expr-lang/expr/vm"
 )
 
 type Variable struct {
@@ -25,8 +27,8 @@ type Variable struct {
 	PublishCycle  *time.Duration
 	CacheDuration *time.Duration // Store cache duration instead of cache instance
 
-	Cache any
-
+	Cache   any
+	Program *vm.Program
 	// Cache instances can be created externally when needed
 	// This allows the Variable to be non-generic while still supporting caching
 }
