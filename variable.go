@@ -11,8 +11,6 @@ import (
 
 type Variable struct {
 	Key           string   `json:"key"`
-	Name          string   `json:"name"`
-	Unit          string   `json:"unit"`
 	Connection    string   `json:"connection"`
 	Address       string   `json:"address"`
 	Script        string   `json:"script"`
@@ -113,8 +111,6 @@ func (v *Variable) Hash() string {
 	// Implement a hash function to generate a unique identifier for the variable
 	hash := md5.New()
 	hash.Write([]byte(v.Key))
-	hash.Write([]byte(v.Name))
-	hash.Write([]byte(v.Unit))
 	hash.Write([]byte(v.Connection))
 	hash.Write([]byte(v.Address))
 	hash.Write([]byte(v.Script))
