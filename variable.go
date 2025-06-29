@@ -19,7 +19,7 @@ type Variable struct {
 	Writable      bool     `json:"writable,omitempty"`       // Optional flag to indicate if the variable is writable
 	AsTag         bool     `json:"as_tag,omitempty"`         // Optional flag to indicate if the variable should be treated as a tag
 	AsEvent       bool     `json:"as_event,omitempty"`       // Optional flag to indicate if the variable should be treated as an event
-
+	DataTypeStr   string   `json:"data_type"`
 	DataType      DataType
 	Bytes         int
 	PublishCycle  *time.Duration
@@ -37,12 +37,10 @@ func (v *Variable) MarshalJSON() ([]byte, error) {
 	// Prepare the auxiliary struct with string representations
 	aux := &struct {
 		*Alias
-		DataTypeStr      string `json:"data_type"`
 		PublishCycleStr  string `json:"publish_cycle,omitempty"`
 		CacheDurationStr string `json:"cache_duration,omitempty"`
 	}{
-		Alias:       (*Alias)(v),
-		DataTypeStr: string(v.DataType),
+		Alias: (*Alias)(v),
 	}
 
 	// Convert PublishCycle to string if it exists
@@ -62,7 +60,6 @@ func (v *Variable) UnmarshalJSON(data []byte) error {
 	type Alias Variable
 	aux := &struct {
 		*Alias
-		DataTypeStr      string `json:"data_type"`
 		PublishCycleStr  string `json:"publish_cycle"`
 		CacheDurationStr string `json:"cache_duration"`
 	}{
@@ -114,7 +111,7 @@ func (v *Variable) Hash() string {
 	hash.Write([]byte(v.Connection))
 	hash.Write([]byte(v.Address))
 	hash.Write([]byte(v.Script))
-	hash.Write([]byte(v.DataType))
+	hash.Write([]byte(v.DataTypeStr))
 	if v.DiffThreshold != nil {
 		hash.Write([]byte(fmt.Sprintf("%0.8f", *v.DiffThreshold)))
 	} else {
