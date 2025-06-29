@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -34,8 +35,13 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 		}
 	}
 
+	keyRegex := regexp.MustCompile(`^\w+$`)
+
 	var errs []string
 	for key, variable := range m.Variables {
+		if !keyRegex.MatchString(key) {
+			errs = append(errs, fmt.Sprintf("Invalid variable key: %s", key))
+		}
 		if key != variable.Key {
 			errs = append(errs, fmt.Sprintf("Variable key mismatch: %s != %s", key, variable.Key))
 		}
