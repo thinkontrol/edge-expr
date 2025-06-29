@@ -13,7 +13,6 @@ type DataType string
 const (
 	DataTypeBool    DataType = "Bool"
 	DataTypeByte    DataType = "Byte"
-	DataTypeChar    DataType = "Char" // Char is often used for single characters, but in some contexts, it can be treated as a byte
 	DataTypeWord    DataType = "Word"
 	DataTypeDWord   DataType = "DWord"
 	DataTypeInt8    DataType = "Int8"
@@ -35,8 +34,6 @@ func ParseDataType(dt string) (DataType, int, error) {
 		return DataTypeBool, 1, nil
 	case string(DataTypeByte):
 		return DataTypeByte, 1, nil
-	case string(DataTypeChar):
-		return DataTypeChar, 1, nil // Char is often treated as a byte
 	case string(DataTypeWord):
 		return DataTypeWord, 2, nil
 	case string(DataTypeDWord):
@@ -579,10 +576,12 @@ func (dt DataType) ConvertFromAny(value any) (any, error) {
 		switch v := value.(type) {
 		case string:
 			return v, nil
+		case []byte:
+			return string(v), nil
 		default:
 			return fmt.Sprintf("%v", value), nil
 		}
-	case DataTypeByte, DataTypeChar:
+	case DataTypeByte:
 		switch v := value.(type) {
 		case []byte:
 			if len(v) > 1 {
@@ -640,6 +639,13 @@ func (dt DataType) ConvertFromAny(value any) (any, error) {
 				return nil, fmt.Errorf("cannot convert %v (type %T) to [1]byte: out of range", v, value)
 			}
 			return [1]byte{byte(v)}, nil
+		case string:
+			if len(v) > 1 {
+				return nil, fmt.Errorf("cannot convert %T to [1]byte: string too long", value)
+			}
+			var arr [1]byte
+			copy(arr[:], v)
+			return arr, nil
 		default:
 			return nil, fmt.Errorf("cannot convert %T to [1]byte", value)
 		}
@@ -699,6 +705,13 @@ func (dt DataType) ConvertFromAny(value any) (any, error) {
 				return nil, fmt.Errorf("cannot convert %v (type %T) to [2]byte: out of range", v, value)
 			}
 			return [2]byte{byte(v), byte(v >> 8)}, nil
+		case string:
+			if len(v) > 2 {
+				return nil, fmt.Errorf("cannot convert %T to [2]byte: string too long", value)
+			}
+			var arr [2]byte
+			copy(arr[:], v)
+			return arr, nil
 		default:
 			return nil, fmt.Errorf("cannot convert %T to [2]byte", value)
 		}
@@ -754,6 +767,13 @@ func (dt DataType) ConvertFromAny(value any) (any, error) {
 				return nil, fmt.Errorf("cannot convert %v (type %T) to [4]byte: out of range", v, value)
 			}
 			return [4]byte{byte(v), byte(v >> 8), byte(v >> 16), byte(v >> 24)}, nil
+		case string:
+			if len(v) > 4 {
+				return nil, fmt.Errorf("cannot convert %T to [4]byte: string too long", value)
+			}
+			var arr [4]byte
+			copy(arr[:], v)
+			return arr, nil
 		default:
 			return nil, fmt.Errorf("cannot convert %T to [4]byte", value)
 		}

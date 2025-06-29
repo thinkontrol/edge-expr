@@ -175,7 +175,7 @@ func (v *Variable) Read() (any, bool, *time.Time) {
 		if cache, ok := v.Cache.(*Cache[string]); ok {
 			return cache.Value(), cache.Changed(), cache.Timestamp()
 		}
-	case DataTypeByte, DataTypeChar, DataTypeWord, DataTypeDWord:
+	case DataTypeByte, DataTypeWord, DataTypeDWord:
 		if cache, ok := v.Cache.(*Cache[[]byte]); ok {
 			return cache.Value(), cache.Changed(), cache.Timestamp()
 		}
@@ -250,7 +250,7 @@ func (v *Variable) WriteValue(value any, t *time.Time) error {
 			return fmt.Errorf("cache type mismatch for variable %s, expected Cache[string]", v.Key)
 		}
 		cache.AddPoint(stringValue.(string), t)
-	case DataTypeByte, DataTypeChar, DataTypeWord, DataTypeDWord:
+	case DataTypeByte, DataTypeWord, DataTypeDWord:
 		_bytesValue, err := v.DataType.ConvertFromAny(value)
 		if err != nil {
 			return fmt.Errorf("failed to convert value to bytes for variable %s: %v", v.Key, err)
@@ -289,7 +289,7 @@ func (v *Variable) createCache() any {
 			return NewCache[string](*v.CacheDuration)
 		}
 		return NewCache[string](time.Minute)
-	case DataTypeByte, DataTypeChar, DataTypeWord, DataTypeDWord:
+	case DataTypeByte, DataTypeWord, DataTypeDWord:
 		if v.CacheDuration != nil {
 			return NewCache[[]byte](*v.CacheDuration)
 		}
