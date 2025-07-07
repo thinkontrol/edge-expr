@@ -26,14 +26,14 @@ type PushField struct {
 	Timestamp *time.Time        `json:"timestamp,omitempty"`
 }
 
-type DeviceCmd struct {
+type Command struct {
 	CommandID string         `json:"command_id"`
 	Command   string         `json:"command"`
 	Payload   map[string]any `json:"payload,omitempty"`
 	Timestamp *time.Time     `json:"timestamp,omitempty"`
 }
 
-type DeviceCmdResponse struct {
+type CommandResponse struct {
 	CommandID string         `json:"command_id"`
 	Message   string         `json:"message,omitempty"`
 	Success   bool           `json:"success"`

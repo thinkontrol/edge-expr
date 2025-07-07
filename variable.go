@@ -16,6 +16,8 @@ type Variable struct {
 	Script        string   `json:"script"`
 	DiffThreshold *float64 `json:"diff_threshold,omitempty"` // Optional threshold for change detection, in the same unit as the variable
 	PctThreshold  *float64 `json:"pct_threshold,omitempty"`  // Optional percentage threshold for change detection, in the same unit as the variable
+	Scale         *float64 `json:"scale,omitempty"`          // Optional scale factor for the variable value
+	Offset        *float64 `json:"offset,omitempty"`         // Optional offset for the variable value
 	Writable      bool     `json:"writable,omitempty"`       // Optional flag to indicate if the variable is writable
 	AsTag         bool     `json:"as_tag,omitempty"`         // Optional flag to indicate if the variable should be treated as a tag
 	AsEvent       bool     `json:"as_event,omitempty"`       // Optional flag to indicate if the variable should be treated as an event
@@ -114,38 +116,24 @@ func (v *Variable) Hash() string {
 	hash.Write([]byte(v.DataTypeStr))
 	if v.DiffThreshold != nil {
 		hash.Write([]byte(fmt.Sprintf("%0.8f", *v.DiffThreshold)))
-	} else {
-		hash.Write([]byte("nil"))
 	}
 	if v.PctThreshold != nil {
 		hash.Write([]byte(fmt.Sprintf("%0.8f", *v.PctThreshold)))
-	} else {
-		hash.Write([]byte("nil"))
 	}
+	if v.Scale != nil {
+		hash.Write([]byte(fmt.Sprintf("%0.8f", *v.Scale)))
+	}
+	if v.Offset != nil {
+		hash.Write([]byte(fmt.Sprintf("%0.8f", *v.Offset)))
+	}
+	hash.Write([]byte(fmt.Sprintf("%t", v.Writable)))
+	hash.Write([]byte(fmt.Sprintf("%t", v.AsTag)))
+	hash.Write([]byte(fmt.Sprintf("%t", v.AsEvent)))
 	if v.CacheDuration != nil {
 		hash.Write([]byte(v.CacheDuration.String()))
-	} else {
-		hash.Write([]byte("nil"))
-	}
-	if v.Writable {
-		hash.Write([]byte("true"))
-	} else {
-		hash.Write([]byte("false"))
 	}
 	if v.PublishCycle != nil {
 		hash.Write([]byte(v.PublishCycle.String()))
-	} else {
-		hash.Write([]byte("nil"))
-	}
-	if v.AsTag {
-		hash.Write([]byte("true"))
-	} else {
-		hash.Write([]byte("false"))
-	}
-	if v.AsEvent {
-		hash.Write([]byte("true"))
-	} else {
-		hash.Write([]byte("false"))
 	}
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
@@ -221,6 +209,12 @@ func (v *Variable) WriteValue(value any, t *time.Time) error {
 		floatValue, err := ConvertToFloat64(value)
 		if err != nil {
 			return err
+		}
+		if v.Scale != nil {
+			floatValue *= *v.Scale
+		}
+		if v.Offset != nil {
+			floatValue += *v.Offset
 		}
 		cache, ok := v.Cache.(*Cache[float64])
 		if !ok {
