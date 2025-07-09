@@ -20,7 +20,6 @@ type Variable struct {
 	Offset        *float64 `json:"offset,omitempty"`         // Optional offset for the variable value
 	Writable      bool     `json:"writable,omitempty"`       // Optional flag to indicate if the variable is writable
 	AsTag         bool     `json:"as_tag,omitempty"`         // Optional flag to indicate if the variable should be treated as a tag
-	AsEvent       bool     `json:"as_event,omitempty"`       // Optional flag to indicate if the variable should be treated as an event
 	DataTypeStr   string   `json:"data_type"`
 	DataType      DataType
 	Bytes         int
@@ -79,9 +78,6 @@ func (v *Variable) UnmarshalJSON(data []byte) error {
 	if v.AsTag && v.DataType != DataTypeString {
 		return fmt.Errorf("variable %s with data type %s cannot be used as a tag", v.Key, v.DataType)
 	}
-	if v.AsEvent && v.DataType != DataTypeBool {
-		return fmt.Errorf("variable %s with data type %s cannot be used as an event", v.Key, v.DataType)
-	}
 
 	// Parse PublishCycle to time.Duration and set publishCycle
 	if aux.PublishCycleStr != "" {
@@ -128,7 +124,6 @@ func (v *Variable) Hash() string {
 	}
 	hash.Write([]byte(fmt.Sprintf("%t", v.Writable)))
 	hash.Write([]byte(fmt.Sprintf("%t", v.AsTag)))
-	hash.Write([]byte(fmt.Sprintf("%t", v.AsEvent)))
 	if v.CacheDuration != nil {
 		hash.Write([]byte(v.CacheDuration.String()))
 	}
