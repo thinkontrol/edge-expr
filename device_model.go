@@ -11,12 +11,12 @@ import (
 	"github.com/expr-lang/expr"
 )
 
-type Model struct {
+type DeviceModel struct {
 	Connections map[string]string    `json:"connections"` // map of connection name to connection type
 	Variables   map[string]*Variable `json:"variables"`   // map of variable name to Variable struct
 }
 
-func (m *Model) UnmarshalJSON(data []byte) error {
+func (m *DeviceModel) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, m); err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (m *Model) Hash() string {
+func (m *DeviceModel) Hash() string {
 	hash := md5.New()
 
 	// 对 Connections 排序
