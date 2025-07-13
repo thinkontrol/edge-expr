@@ -4,9 +4,9 @@ import (
 	"time"
 )
 
-type PushVariable struct {
-	Value     interface{} `json:"value"`
-	Timestamp *time.Time  `json:"timestamp,omitempty"`
+type ValueWithTimestamp struct {
+	Value     any        `json:"value"`
+	Timestamp *time.Time `json:"timestamp,omitempty"`
 }
 
 type Command struct {
