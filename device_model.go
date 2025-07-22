@@ -17,7 +17,9 @@ type DeviceModel struct {
 }
 
 func (m *DeviceModel) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, m); err != nil {
+	type Alias DeviceModel
+	aux := (*Alias)(m)
+	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}
 	// Initialize maps if they are nil
