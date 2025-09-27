@@ -7,13 +7,13 @@ import (
 )
 
 func (v *Variable) GetPushValues(gcd, i int64) []*PushValue {
+	var pushValues []*PushValue
 	if v.PublishCycle == nil {
-		return nil
+		return pushValues
 	}
 	if v.Cache == nil {
-		return nil
+		return pushValues
 	}
-	var pushValues []*PushValue
 	publishCycle := int64(*v.PublishCycle)
 	times := publishCycle / gcd
 	changed := v.ChangedWithLatestPushValue()
