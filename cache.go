@@ -25,7 +25,7 @@ func NewCache[T float64 | bool | string | []byte](expireDuration time.Duration) 
 	}
 }
 
-func (c *Cache[T]) PushValue(key string) *PushValue {
+func (c *Cache[T]) PushValue() *PushValue {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -33,7 +33,7 @@ func (c *Cache[T]) PushValue(key string) *PushValue {
 		return nil
 	}
 	return &PushValue{
-		Key:       key,
+		// Key:       key,
 		Value:     c.Points[len(c.Points)-1].Value,
 		Timestamp: c.Points[len(c.Points)-1].Timestamp,
 	}

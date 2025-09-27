@@ -20,13 +20,13 @@ func (v *Variable) GetPushValues(gcd, i int64) []*PushValue {
 	if (publishCycle <= 0 && changed) || (times != 0 && i%times == 0) {
 		switch cache := v.Cache.(type) {
 		case *Cache[float64]:
-			if pushValue := cache.PushValue(v.Key); pushValue != nil {
+			if pushValue := cache.PushValue(); pushValue != nil {
 				pushValues = append(pushValues, pushValue)
 				if changed && len(cache.Points) >= 2 {
 					if p, ok := v.LatestPush.(Point[float64]); ok {
 						if p.Timestamp != nil && cache.Points[len(cache.Points)-2].Timestamp != nil && !p.Timestamp.Equal(*cache.Points[len(cache.Points)-2].Timestamp) {
 							pushValues = append(pushValues, &PushValue{
-								Key:       v.Key,
+								// Key:       v.Key,
 								Value:     cache.Points[len(cache.Points)-2].Value,
 								Timestamp: cache.Points[len(cache.Points)-2].Timestamp,
 							})
@@ -36,17 +36,17 @@ func (v *Variable) GetPushValues(gcd, i int64) []*PushValue {
 				v.LatestPush = cache.Points[len(cache.Points)-1]
 			}
 		case *Cache[bool]:
-			if pushValue := cache.PushValue(v.Key); pushValue != nil {
+			if pushValue := cache.PushValue(); pushValue != nil {
 				pushValues = append(pushValues, pushValue)
 				v.LatestPush = cache.Points[len(cache.Points)-1]
 			}
 		case *Cache[string]:
-			if pushValue := cache.PushValue(v.Key); pushValue != nil {
+			if pushValue := cache.PushValue(); pushValue != nil {
 				pushValues = append(pushValues, pushValue)
 				v.LatestPush = cache.Points[len(cache.Points)-1]
 			}
 		case *Cache[[]byte]:
-			if pushValue := cache.PushValue(v.Key); pushValue != nil {
+			if pushValue := cache.PushValue(); pushValue != nil {
 				pushValues = append(pushValues, pushValue)
 				v.LatestPush = cache.Points[len(cache.Points)-1]
 			}
