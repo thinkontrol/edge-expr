@@ -21,7 +21,6 @@ func (v *Variable) GetPushValues(gcd, i int64) []*PushValue {
 		switch cache := v.Cache.(type) {
 		case *Cache[float64]:
 			if pushValue := cache.PushValue(); pushValue != nil {
-				pushValues = append(pushValues, pushValue)
 				if changed && len(cache.Points) >= 2 {
 					if p, ok := v.LatestPush.(Point[float64]); ok {
 						if p.Timestamp != nil && cache.Points[len(cache.Points)-2].Timestamp != nil && !p.Timestamp.Equal(*cache.Points[len(cache.Points)-2].Timestamp) {
@@ -33,6 +32,7 @@ func (v *Variable) GetPushValues(gcd, i int64) []*PushValue {
 						}
 					}
 				}
+				pushValues = append(pushValues, pushValue)
 				v.LatestPush = cache.Points[len(cache.Points)-1]
 			}
 		case *Cache[bool]:
