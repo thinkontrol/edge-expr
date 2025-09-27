@@ -25,6 +25,20 @@ func NewCache[T float64 | bool | string | []byte](expireDuration time.Duration) 
 	}
 }
 
+func (c *Cache[T]) PushValue(key string) *PushValue {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if len(c.Points) == 0 {
+		return nil
+	}
+	return &PushValue{
+		Key:       key,
+		Value:     c.Points[len(c.Points)-1].Value,
+		Timestamp: c.Points[len(c.Points)-1].Timestamp,
+	}
+}
+
 func (c *Cache[T]) Value() T {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -184,6 +198,37 @@ func (c *Cache[T]) PctChange() (float64, error) {
 	return percentageChange, nil
 }
 
+func (c *Cache[T]) PctChangeWith(val float64) (float64, error) {
+	if c == nil {
+		return 0, nil
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if len(c.Points) < 1 {
+		return 0, nil
+	}
+
+	// 获取最新的两个点
+	currentVal, ok1 := any(c.Points[len(c.Points)-1].Value).(float64)
+	if !ok1 {
+		return 0, errors.New("value is not a float64 type")
+	}
+
+	// 如果前一个值为0，无法计算百分比变化
+	if val == 0 {
+		if currentVal == 0 {
+			return 0, nil // 0到0没有变化
+		}
+		return 0, errors.New("cannot calculate percentage change from zero")
+	}
+
+	// 计算百分比变化：((current - previous) / previous) * 100
+	percentageChange := ((currentVal - val) / val) * 100
+	return percentageChange, nil
+}
+
 // Diff calculates the difference between the latest two points (current - previous)
 func (c *Cache[T]) Diff() (float64, error) {
 	if c == nil {
@@ -207,6 +252,30 @@ func (c *Cache[T]) Diff() (float64, error) {
 
 	// 计算差值：current - previous
 	difference := currentVal - previousVal
+	return difference, nil
+}
+
+func (c *Cache[T]) DiffWith(val float64) (float64, error) {
+	if c == nil {
+		return 0, nil
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if len(c.Points) < 21 {
+		return 0, nil
+	}
+
+	// 获取最新的两个点
+	currentVal, ok1 := any(c.Points[len(c.Points)-1].Value).(float64)
+
+	if !ok1 {
+		return 0, errors.New("value is not a float64 type")
+	}
+
+	// 计算差值：current - previous
+	difference := currentVal - val
 	return difference, nil
 }
 

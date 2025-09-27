@@ -4,7 +4,8 @@ import (
 	"time"
 )
 
-type ValueWithTimestamp struct {
+type PushValue struct {
+	Key       string     `json:"key"`
 	Value     any        `json:"value"`
 	Timestamp *time.Time `json:"timestamp,omitempty"`
 }
