@@ -10,24 +10,24 @@ import (
 )
 
 type Variable struct {
-	Key           string   `json:"key"`
-	Connection    string   `json:"connection"`
-	Address       string   `json:"address"`
-	Script        string   `json:"script"`
-	DiffThreshold *float64 `json:"diff_threshold,omitempty"` // Optional threshold for change detection, in the same unit as the variable
-	PctThreshold  *float64 `json:"pct_threshold,omitempty"`  // Optional percentage threshold for change detection, in the same unit as the variable
-	Scale         *float64 `json:"scale,omitempty"`          // Optional scale factor for the variable value
-	Offset        *float64 `json:"offset,omitempty"`         // Optional offset for the variable value
-	Writable      bool     `json:"writable,omitempty"`       // Optional flag to indicate if the variable is writable
-	DataTypeStr   string   `json:"data_type"`
-	DataType      DataType
-	Bytes         int
-	PublishCycle  *time.Duration
-	CacheDuration *time.Duration // Store cache duration instead of cache instance
+	Key           string         `json:"key"`
+	Connection    string         `json:"connection"`
+	Address       string         `json:"address"`
+	Script        string         `json:"script"`
+	DiffThreshold *float64       `json:"diff_threshold,omitempty"` // Optional threshold for change detection, in the same unit as the variable
+	PctThreshold  *float64       `json:"pct_threshold,omitempty"`  // Optional percentage threshold for change detection, in the same unit as the variable
+	Scale         *float64       `json:"scale,omitempty"`          // Optional scale factor for the variable value
+	Offset        *float64       `json:"offset,omitempty"`         // Optional offset for the variable value
+	Writable      bool           `json:"writable,omitempty"`       // Optional flag to indicate if the variable is writable
+	DataTypeStr   string         `json:"data_type"`
+	DataType      DataType       `json:"-"`
+	Bytes         int            `json:"-"` // Number of bytes for the data type, derived from DataType
+	PublishCycle  *time.Duration `json:"-"`
+	CacheDuration *time.Duration `json:"-"`
 
-	Cache      any
-	LatestPush any
-	Program    *vm.Program
+	Cache      any         `json:"-"`
+	LatestPush any         `json:"-"`
+	Program    *vm.Program `json:"-"`
 	// Cache instances can be created externally when needed
 	// This allows the Variable to be non-generic while still supporting caching
 }
