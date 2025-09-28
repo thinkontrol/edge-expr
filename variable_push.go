@@ -14,6 +14,9 @@ func (v *Variable) GetPushValues(gcd, i int64) []*PushValue {
 	if v.Cache == nil {
 		return pushValues
 	}
+	if !v.TimestampUpdated() {
+		return pushValues
+	}
 	publishCycle := int64(*v.PublishCycle)
 	times := publishCycle / gcd
 	changed := v.ChangedWithLatestPushValue()
@@ -56,6 +59,44 @@ func (v *Variable) GetPushValues(gcd, i int64) []*PushValue {
 		}
 	}
 	return pushValues
+}
+
+func (v *Variable) TimestampUpdated() bool {
+	if v.Cache == nil {
+		return false
+	}
+	if v.LatestPush == nil {
+		return true
+	}
+	switch cache := v.Cache.(type) {
+	case *Cache[float64]:
+		latestPush, ok := v.LatestPush.(Point[float64])
+		if !ok {
+			return true
+		}
+		return cache.Timestamp() != nil && (latestPush.Timestamp == nil || !cache.Timestamp().Equal(*latestPush.Timestamp))
+	case *Cache[bool]:
+		latestPush, ok := v.LatestPush.(Point[bool])
+		if !ok {
+			return true
+		}
+		return cache.Timestamp() != nil && (latestPush.Timestamp == nil || !cache.Timestamp().Equal(*latestPush.Timestamp))
+	case *Cache[string]:
+		latestPush, ok := v.LatestPush.(Point[string])
+		if !ok {
+			return true
+		}
+		return cache.Timestamp() != nil && (latestPush.Timestamp == nil || !cache.Timestamp().Equal(*latestPush.Timestamp))
+	case *Cache[[]byte]:
+		latestPush, ok := v.LatestPush.(Point[[]byte])
+		if !ok {
+			return true
+		}
+		return cache.Timestamp() != nil && (latestPush.Timestamp == nil || !cache.Timestamp().Equal(*latestPush.Timestamp))
+		// Supported cache types
+	default:
+		return true // Unsupported cache type
+	}
 }
 
 func (v *Variable) ChangedWithLatestPushValue() bool {
