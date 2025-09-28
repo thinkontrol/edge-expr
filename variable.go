@@ -169,6 +169,29 @@ func (v *Variable) Read() (any, *time.Time) {
 	// return nil, nil // Unsupported data type or cache type mismatch
 }
 
+func (v *Variable) ValueUnScale(value interface{}) interface{} {
+	switch val := value.(type) {
+	case float64:
+		if v.Scale != nil && *v.Scale != 0 {
+			val /= *v.Scale
+		}
+		if v.Offset != nil {
+			val -= *v.Offset
+		}
+		return val
+	case float32:
+		if v.Scale != nil && *v.Scale != 0 {
+			val /= float32(*v.Scale)
+		}
+		if v.Offset != nil {
+			val -= float32(*v.Offset)
+		}
+		return val
+	default:
+		return value
+	}
+}
+
 func (v *Variable) WriteValue(value any, t *time.Time) error {
 	switch v.DataType {
 	case DataTypeFloat32, DataTypeFloat64, DataTypeInt8, DataTypeUInt8, DataTypeInt16, DataTypeUInt16,
