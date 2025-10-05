@@ -28,6 +28,26 @@ const (
 	DataTypeString  DataType = "String"
 )
 
+func (DataType) Values() []string {
+	return []string{
+		string(DataTypeBool),
+		string(DataTypeByte),
+		string(DataTypeWord),
+		string(DataTypeDWord),
+		string(DataTypeInt8),
+		string(DataTypeUInt8),
+		string(DataTypeInt16),
+		string(DataTypeUInt16),
+		string(DataTypeInt32),
+		string(DataTypeUInt32),
+		string(DataTypeInt64),
+		string(DataTypeUInt64),
+		string(DataTypeFloat32),
+		string(DataTypeFloat64),
+		string(DataTypeString),
+	}
+}
+
 func ParseDataType(dt string) (DataType, int, error) {
 	switch dt {
 	case string(DataTypeBool):
