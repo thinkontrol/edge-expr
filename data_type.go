@@ -2,6 +2,7 @@ package edgeexpr
 
 import (
 	"fmt"
+	"io"
 	"math"
 	"regexp"
 	"strconv"
@@ -28,6 +29,20 @@ const (
 	DataTypeString  DataType = "String"
 )
 
+func (dt DataType) String() string {
+	return string(dt)
+}
+
+// DataTypeValidator is a validator for the "dataType" field enum values. It is called by the builders before save.
+func DataTypeValidator(dt DataType) error {
+	switch dt {
+	case DataTypeBool, DataTypeByte, DataTypeWord, DataTypeDWord, DataTypeInt8, DataTypeUInt8, DataTypeInt16, DataTypeUInt16, DataTypeInt32, DataTypeUInt32, DataTypeInt64, DataTypeUInt64, DataTypeFloat32, DataTypeFloat64, DataTypeString:
+		return nil
+	default:
+		return fmt.Errorf("data: invalid enum value for dataType field: %q", dt)
+	}
+}
+
 func (DataType) Values() []string {
 	return []string{
 		string(DataTypeBool),
@@ -46,6 +61,23 @@ func (DataType) Values() []string {
 		string(DataTypeFloat64),
 		string(DataTypeString),
 	}
+}
+
+func (dt DataType) MarshalGQL(w io.Writer) {
+	io.WriteString(w, strconv.Quote(string(dt)))
+}
+
+// UnmarshalGQL implements graphql.Unmarshaler interface.
+func (dt *DataType) UnmarshalGQL(val interface{}) error {
+	str, ok := val.(string)
+	if !ok {
+		return fmt.Errorf("enum %T must be a string", val)
+	}
+	*dt = DataType(str)
+	if err := DataTypeValidator(*dt); err != nil {
+		return fmt.Errorf("%s is not a valid DataType", str)
+	}
+	return nil
 }
 
 func ParseDataType(dt string) (DataType, int, error) {
