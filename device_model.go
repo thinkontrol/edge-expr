@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/expr-lang/expr"
+	log "github.com/sirupsen/logrus"
 )
 
 type DeviceModel struct {
@@ -84,7 +85,9 @@ func (m *DeviceModel) Hash() string {
 	}
 	sort.Strings(varKeys)
 	for _, k := range varKeys {
-		hash.Write([]byte(fmt.Sprintf("%s:%s;", k, m.Variables[k].Hash())))
+		varHash := m.Variables[k].Hash()
+		log.Debugf("Variable %s hash: %s", k, varHash)
+		hash.Write([]byte(fmt.Sprintf("%s:%s;", k, varHash)))
 	}
 
 	return fmt.Sprintf("%x", hash.Sum(nil))
