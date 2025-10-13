@@ -103,7 +103,14 @@ func (v *Variable) UnmarshalJSON(data []byte) error {
 func (v *Variable) Hash() string {
 	// Implement a hash function to generate a unique identifier for the variable
 	log.Debugf("Key: %s, Connection: %s, Address: %s, Script: %s, DataTypeStr: %s, Writable: %t", v.Key, v.Connection, v.Address, v.Script, v.DataTypeStr, v.Writable)
-	log.Debugf("DiffThreshold: %v, PctThreshold: %v, Scale: %v, Offset: %v", lo.Ternary(v.DiffThreshold != nil, *v.DiffThreshold, 0), lo.Ternary(v.PctThreshold != nil, *v.PctThreshold, 0), lo.Ternary(v.Scale != nil, *v.Scale, 0), lo.Ternary(v.Offset != nil, *v.Offset, 0))
+	log.Debugf("DiffThreshold: %0.8f, PctThreshold: %0.8f, Scale: %0.8f, Offset: %0.8f",
+		lo.If(v.DiffThreshold != nil, *v.DiffThreshold).Else(0),
+		lo.If(v.PctThreshold != nil, *v.PctThreshold).Else(0),
+		lo.If(v.Scale != nil, *v.Scale).Else(0),
+		lo.If(v.Offset != nil, *v.Offset).Else(0))
+	log.Debugf("CacheDuration: %s, PublishCycle: %s",
+		lo.If(v.CacheDuration != nil, v.CacheDuration.String()).Else("nil"),
+		lo.If(v.PublishCycle != nil, v.PublishCycle.String()).Else("nil"))
 	hash := md5.New()
 	hash.Write([]byte(v.Key))
 	hash.Write([]byte(v.Connection))
