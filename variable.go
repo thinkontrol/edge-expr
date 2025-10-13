@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/expr-lang/expr/vm"
-	"github.com/samber/lo"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -100,17 +99,44 @@ func (v *Variable) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func Check[T any](v *T) T {
+	return *v
+}
+
 func (v *Variable) Hash() string {
 	// Implement a hash function to generate a unique identifier for the variable
 	log.Debugf("Key: %s, Connection: %s, Address: %s, Script: %s, DataTypeStr: %s, Writable: %t", v.Key, v.Connection, v.Address, v.Script, v.DataTypeStr, v.Writable)
-	log.Debugf("DiffThreshold: %0.8f, PctThreshold: %0.8f, Scale: %0.8f, Offset: %0.8f",
-		lo.If(v.DiffThreshold != nil, *v.DiffThreshold).Else(0),
-		lo.If(v.PctThreshold != nil, *v.PctThreshold).Else(0),
-		lo.If(v.Scale != nil, *v.Scale).Else(0),
-		lo.If(v.Offset != nil, *v.Offset).Else(0))
-	log.Debugf("CacheDuration: %s, PublishCycle: %s",
-		lo.If(v.CacheDuration != nil, v.CacheDuration.String()).Else("nil"),
-		lo.If(v.PublishCycle != nil, v.PublishCycle.String()).Else("nil"))
+	if v.DiffThreshold != nil {
+		log.Debugf("DiffThreshold: %0.8f", *v.DiffThreshold)
+	} else {
+		log.Debugf("DiffThreshold: nil")
+	}
+	if v.PctThreshold != nil {
+		log.Debugf("PctThreshold: %0.8f", *v.PctThreshold)
+	} else {
+		log.Debugf("PctThreshold: nil")
+	}
+	if v.Scale != nil {
+		log.Debugf("Scale: %0.8f", *v.Scale)
+	} else {
+		log.Debugf("Scale: nil")
+	}
+	if v.Offset != nil {
+		log.Debugf("Offset: %0.8f", *v.Offset)
+	} else {
+		log.Debugf("Offset: nil")
+	}
+	if v.CacheDuration != nil {
+		log.Debugf("CacheDuration: %s", v.CacheDuration.String())
+	} else {
+		log.Debugf("CacheDuration: nil")
+	}
+	if v.PublishCycle != nil {
+		log.Debugf("PublishCycle: %s", v.PublishCycle.String())
+	} else {
+		log.Debugf("PublishCycle: nil")
+	}
+
 	hash := md5.New()
 	hash.Write([]byte(v.Key))
 	hash.Write([]byte(v.Connection))
