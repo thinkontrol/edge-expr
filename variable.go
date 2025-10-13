@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/expr-lang/expr/vm"
+	"github.com/samber/lo"
+	log "github.com/sirupsen/logrus"
 )
 
 type Variable struct {
@@ -100,6 +102,8 @@ func (v *Variable) UnmarshalJSON(data []byte) error {
 
 func (v *Variable) Hash() string {
 	// Implement a hash function to generate a unique identifier for the variable
+	log.Debugf("Key: %s, Connection: %s, Address: %s, Script: %s, DataTypeStr: %s, Writable: %t", v.Key, v.Connection, v.Address, v.Script, v.DataTypeStr, v.Writable)
+	log.Debugf("DiffThreshold: %v, PctThreshold: %v, Scale: %v, Offset: %v", lo.Ternary(v.DiffThreshold != nil, *v.DiffThreshold, 0), lo.Ternary(v.PctThreshold != nil, *v.PctThreshold, 0), lo.Ternary(v.Scale != nil, *v.Scale, 0), lo.Ternary(v.Offset != nil, *v.Offset, 0))
 	hash := md5.New()
 	hash.Write([]byte(v.Key))
 	hash.Write([]byte(v.Connection))
