@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/expr-lang/expr/vm"
-	log "github.com/sirupsen/logrus"
 )
 
 type Variable struct {
@@ -91,9 +90,6 @@ func (v *Variable) UnmarshalJSON(data []byte) error {
 		} else {
 			return fmt.Errorf("invalid cache format: %v", err)
 		}
-	} else {
-		defaultDuration := time.Minute
-		v.CacheDuration = &defaultDuration // Default cache duration if not specified
 	}
 	v.Cache = v.createCache() // Create cache instance based on DataType and CacheDuration
 	return nil
@@ -105,37 +101,37 @@ func Check[T any](v *T) T {
 
 func (v *Variable) Hash() string {
 	// Implement a hash function to generate a unique identifier for the variable
-	log.Debugf("Key: %s, Connection: %s, Address: %s, Script: %s, DataTypeStr: %s, Writable: %t", v.Key, v.Connection, v.Address, v.Script, v.DataTypeStr, v.Writable)
-	if v.DiffThreshold != nil {
-		log.Debugf("DiffThreshold: %0.8f", *v.DiffThreshold)
-	} else {
-		log.Debugf("DiffThreshold: nil")
-	}
-	if v.PctThreshold != nil {
-		log.Debugf("PctThreshold: %0.8f", *v.PctThreshold)
-	} else {
-		log.Debugf("PctThreshold: nil")
-	}
-	if v.Scale != nil {
-		log.Debugf("Scale: %0.8f", *v.Scale)
-	} else {
-		log.Debugf("Scale: nil")
-	}
-	if v.Offset != nil {
-		log.Debugf("Offset: %0.8f", *v.Offset)
-	} else {
-		log.Debugf("Offset: nil")
-	}
-	if v.CacheDuration != nil {
-		log.Debugf("CacheDuration: %s", v.CacheDuration.String())
-	} else {
-		log.Debugf("CacheDuration: nil")
-	}
-	if v.PublishCycle != nil {
-		log.Debugf("PublishCycle: %s", v.PublishCycle.String())
-	} else {
-		log.Debugf("PublishCycle: nil")
-	}
+	// log.Debugf("Key: %s, Connection: %s, Address: %s, Script: %s, DataTypeStr: %s, Writable: %t", v.Key, v.Connection, v.Address, v.Script, v.DataTypeStr, v.Writable)
+	// if v.DiffThreshold != nil {
+	// 	log.Debugf("DiffThreshold: %0.8f", *v.DiffThreshold)
+	// } else {
+	// 	log.Debugf("DiffThreshold: nil")
+	// }
+	// if v.PctThreshold != nil {
+	// 	log.Debugf("PctThreshold: %0.8f", *v.PctThreshold)
+	// } else {
+	// 	log.Debugf("PctThreshold: nil")
+	// }
+	// if v.Scale != nil {
+	// 	log.Debugf("Scale: %0.8f", *v.Scale)
+	// } else {
+	// 	log.Debugf("Scale: nil")
+	// }
+	// if v.Offset != nil {
+	// 	log.Debugf("Offset: %0.8f", *v.Offset)
+	// } else {
+	// 	log.Debugf("Offset: nil")
+	// }
+	// if v.CacheDuration != nil {
+	// 	log.Debugf("CacheDuration: %s", v.CacheDuration.String())
+	// } else {
+	// 	log.Debugf("CacheDuration: nil")
+	// }
+	// if v.PublishCycle != nil {
+	// 	log.Debugf("PublishCycle: %s", v.PublishCycle.String())
+	// } else {
+	// 	log.Debugf("PublishCycle: nil")
+	// }
 
 	hash := md5.New()
 	hash.Write([]byte(v.Key))
