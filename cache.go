@@ -730,3 +730,6 @@ func (c *Cache[T]) cleanExpiredPointsUnsafe() {
 
 	c.Points = validPoints
 }
+
+// TODO:  增加功能： 某个时间段的变化值
+// TODO: 取bit
