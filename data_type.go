@@ -112,6 +112,24 @@ func ParseDataType(dt string) (DataType, int, error) {
 		return DataTypeFloat64, 8, nil
 	case string(DataTypeString):
 		return DataTypeString, 0, nil // String has no fixed size
+	case "S5Time": //ms
+		return DataTypeInt16, 2, nil
+	case "Time": //ms
+		return DataTypeInt32, 4, nil
+	case "LTime": //ns
+		return DataTypeInt64, 8, nil
+	case "DTL":
+		return DataTypeString, 12, nil
+	case "Date":
+		return DataTypeString, 2, nil
+	case "Date_And_Time":
+		return DataTypeString, 8, nil
+	case "LDT":
+		return DataTypeString, 8, nil
+	case "LTime_Of_Day":
+		return DataTypeString, 8, nil
+	case "Time_Of_Day":
+		return DataTypeString, 4, nil
 	default:
 		// for siemens like "WString[10]", "String[20]", etc.
 		reg, _ := regexp.Compile(`^(W)?String\[(\d+)\]$`)
