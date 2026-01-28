@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/expr-lang/expr"
-	"github.com/expr-lang/expr/vm"
 )
 
 func TestCacheExpr(t *testing.T) {
@@ -16,9 +15,14 @@ func TestCacheExpr(t *testing.T) {
 		"data":        NewCache[[]byte](time.Minute),
 	}
 
+	env["temperature"].(*Cache[float64]).AddPoint(23.5, nil)
+	env["status"].(*Cache[bool]).AddPoint(true, nil)
+	env["message"].(*Cache[string]).AddPoint("Device1", nil)
+	env["data"].(*Cache[[]byte]).AddPoint([]byte{0x01, 0x02, 0x03, 0x04}, nil)
+
 	expressions := []string{
 		`temperature.Value() * 0.5`,
-		`status.Value()`,
+		`status.Value() ? "ON" : "OFF"`,
 		`message.Value() + " is ready"`,
 		`data.Value()`,
 		`temperature.Len()`,
@@ -99,8 +103,6 @@ func TestCacheExpr(t *testing.T) {
 		`data.ByteBit(2,4)`,
 	}
 
-	var programs []*vm.Program
-
 	for _, exprStr := range expressions {
 		program, err := expr.Compile(exprStr, expr.Env(env))
 		if err != nil {
@@ -108,7 +110,12 @@ func TestCacheExpr(t *testing.T) {
 		} else {
 			t.Logf("compiled expression %q successfully", exprStr)
 		}
-		programs = append(programs, program)
+		out, err := expr.Run(program, env)
+		if err != nil {
+			t.Errorf("failed to run expression %q: %v", exprStr, err)
+		} else {
+			t.Logf("expression %q output: %v", exprStr, out)
+		}
 	}
 
 }

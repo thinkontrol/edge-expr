@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/rand"
 	"regexp"
 	"strconv"
 )
@@ -849,6 +850,54 @@ func (dt DataType) ConvertFromAny(value any) (any, error) {
 		}
 	default:
 		return nil, fmt.Errorf("unsupported data type: %v", dt)
+	}
+}
+
+func (dt DataType) GenerateRandomValue() (any, error) {
+	switch dt {
+	case DataTypeBool:
+		return rand.Intn(2) == 1, nil
+	case DataTypeInt8:
+		return int8(rand.Intn(math.MaxInt8 + 1)), nil
+	case DataTypeInt16:
+		return int16(rand.Intn(math.MaxInt16 + 1)), nil
+	case DataTypeInt32:
+		return int32(rand.Int31()), nil
+	case DataTypeInt64:
+		return rand.Int63(), nil
+	case DataTypeUInt8:
+		return uint8(rand.Intn(math.MaxUint8 + 1)), nil
+	case DataTypeUInt16:
+		return uint16(rand.Intn(math.MaxUint16 + 1)), nil
+	case DataTypeUInt32:
+		return uint32(rand.Uint32()), nil
+	case DataTypeUInt64:
+		return rand.Uint64(), nil
+	case DataTypeFloat32:
+		return rand.Float32() * math.MaxFloat32, nil
+	case DataTypeFloat64:
+		return rand.Float64() * math.MaxFloat64, nil
+	case DataTypeString:
+		length := rand.Intn(20) + 1 // Random length between 1 and 20
+		bytes := make([]byte, length)
+		for i := 0; i < length; i++ {
+			bytes[i] = byte(rand.Intn(26) + 97) // a-z
+		}
+		return string(bytes), nil
+	case DataTypeByte:
+		var arr [1]byte
+		rand.Read(arr[:])
+		return arr, nil
+	case DataTypeWord:
+		var arr [2]byte
+		rand.Read(arr[:])
+		return arr, nil
+	case DataTypeDWord:
+		var arr [4]byte
+		rand.Read(arr[:])
+		return arr, nil
+	default:
+		return nil, fmt.Errorf("unsupported data type for random generation: %v", dt)
 	}
 }
 
