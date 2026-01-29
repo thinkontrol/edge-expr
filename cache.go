@@ -687,6 +687,161 @@ func (c *Cache[T]) ByteBit(n, i int) (bool, error) {
 	}
 }
 
+// BitAnd performs a bitwise AND operation between the latest []byte value and the mask
+// The []byte value is interpreted as a Little-Endian integer
+func (c *Cache[T]) BitAnd(mask uint64) (uint, error) {
+	if c == nil {
+		return 0, nil
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if len(c.Points) == 0 {
+		return 0, nil
+	}
+
+	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
+		var value uint64
+		// Interpret []byte as Little Endian integer
+		// Index 0 is the least significant byte
+		for i, b := range val {
+			if i >= 8 {
+				break
+			}
+			value |= uint64(b) << (i * 8)
+		}
+
+		return uint(value & mask), nil
+	} else {
+		return 0, errors.New("value is not a []byte type")
+	}
+}
+
+// BitOr performs a bitwise OR operation between the latest []byte value and the mask
+// The []byte value is interpreted as a Little-Endian integer
+func (c *Cache[T]) BitOr(mask uint64) (uint, error) {
+	if c == nil {
+		return 0, nil
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if len(c.Points) == 0 {
+		return 0, nil
+	}
+
+	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
+		var value uint64
+		// Interpret []byte as Little Endian integer
+		// Index 0 is the least significant byte
+		for i, b := range val {
+			if i >= 8 {
+				break
+			}
+			value |= uint64(b) << (i * 8)
+		}
+
+		return uint(value | mask), nil
+	} else {
+		return 0, errors.New("value is not a []byte type")
+	}
+}
+
+// BitXor performs a bitwise XOR operation between the latest []byte value and the mask
+// The []byte value is interpreted as a Little-Endian integer
+func (c *Cache[T]) BitXor(mask uint64) (uint, error) {
+	if c == nil {
+		return 0, nil
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if len(c.Points) == 0 {
+		return 0, nil
+	}
+
+	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
+		var value uint64
+		// Interpret []byte as Little Endian integer
+		// Index 0 is the least significant byte
+		for i, b := range val {
+			if i >= 8 {
+				break
+			}
+			value |= uint64(b) << (i * 8)
+		}
+
+		return uint(value ^ mask), nil
+	} else {
+		return 0, errors.New("value is not a []byte type")
+	}
+}
+
+// BitClear performs a bitwise AND NOT operation (bit clear) between the latest []byte value and the mask
+// The []byte value is interpreted as a Little-Endian integer
+func (c *Cache[T]) BitClear(mask uint64) (uint, error) {
+	if c == nil {
+		return 0, nil
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if len(c.Points) == 0 {
+		return 0, nil
+	}
+
+	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
+		var value uint64
+		// Interpret []byte as Little Endian integer
+		// Index 0 is the least significant byte
+		for i, b := range val {
+			if i >= 8 {
+				break
+			}
+			value |= uint64(b) << (i * 8)
+		}
+
+		return uint(value &^ mask), nil
+	} else {
+		return 0, errors.New("value is not a []byte type")
+	}
+}
+
+// BitNot performs a bitwise NOT operation on the latest []byte value
+// The []byte value is interpreted as a Little-Endian integer
+func (c *Cache[T]) BitNot() (uint, error) {
+	if c == nil {
+		return 0, nil
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if len(c.Points) == 0 {
+		return 0, nil
+	}
+
+	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
+		var value uint64
+		// Interpret []byte as Little Endian integer
+		// Index 0 is the least significant byte
+		for i, b := range val {
+			if i >= 8 {
+				break
+			}
+			value |= uint64(b) << (i * 8)
+		}
+
+		return uint(^value), nil
+	} else {
+		return 0, errors.New("value is not a []byte type")
+	}
+}
+
 func (c *Cache[T]) AddPoint(value T, timestamp *time.Time) {
 	if c == nil {
 		return

@@ -18,7 +18,7 @@ func TestCacheExpr(t *testing.T) {
 	env["temperature"].(*Cache[float64]).AddPoint(23.5, nil)
 	env["status"].(*Cache[bool]).AddPoint(true, nil)
 	env["message"].(*Cache[string]).AddPoint("Device1", nil)
-	env["data"].(*Cache[[]byte]).AddPoint([]byte{0x01, 0x02, 0x03, 0x04}, nil)
+	env["data"].(*Cache[[]byte]).AddPoint([]byte{0x10, 0x02, 0x03, 0x04, 0x11, 0x12, 0x13, 0x14}, nil)
 
 	expressions := []string{
 		`temperature.Value() * 0.5`,
@@ -101,6 +101,7 @@ func TestCacheExpr(t *testing.T) {
 		`status.ByteBit(2,4)`,
 		`message.ByteBit(2,4)`,
 		`data.ByteBit(2,4)`,
+		`data.BitAnd(0x1F)`,
 	}
 
 	for _, exprStr := range expressions {
