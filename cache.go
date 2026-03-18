@@ -870,7 +870,7 @@ func (c *Cache[T]) AddPoint(value T, timestamp *time.Time) {
 }
 
 func (c *Cache[T]) cleanExpiredPointsUnsafe() {
-	if c.ExpireDuration <= 0 {
+	if c.ExpireDuration <= 0 || len(c.Points) <= 1 {
 		return
 	}
 
