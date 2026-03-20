@@ -2,6 +2,7 @@ package edgeexpr
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -107,9 +108,12 @@ func (c *Cache[T]) Len() int {
 
 // MA calculates Moving Average within the specified time window
 func (c *Cache[T]) MA(window string) (float64, error) {
+	if c == nil {
+		return 0, fmt.Errorf("cache is nil")
+	}
 	points := c.getPointsInWindow(window)
 	if len(points) == 0 {
-		return 0, nil
+		return 0, fmt.Errorf("no data yet")
 	}
 
 	// 使用类型断言检查是否为 float64
@@ -127,13 +131,16 @@ func (c *Cache[T]) MA(window string) (float64, error) {
 
 // StdDev calculates Standard Deviation within the specified time window
 func (c *Cache[T]) StdDev(window string) (float64, error) {
+	if c == nil {
+		return 0, fmt.Errorf("cache is nil")
+	}
 	points := c.getPointsInWindow(window)
 	if len(points) == 0 {
-		return 0, nil
+		return 0, fmt.Errorf("no data yet")
 	}
 
 	if len(points) == 1 {
-		return 0, nil // 单个点的标准差为0
+		return 0, fmt.Errorf("at least two data points are required to calculate standard deviation")
 	}
 
 	// 检查所有值是否为 float64 类型并计算平均值
@@ -167,14 +174,14 @@ func (c *Cache[T]) StdDev(window string) (float64, error) {
 // PctChange calculates Percentage Change between the latest two points
 func (c *Cache[T]) PctChange() (float64, error) {
 	if c == nil {
-		return 0, nil
+		return 0, fmt.Errorf("cache is nil")
 	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	if len(c.Points) < 2 {
-		return 0, nil
+		return 0, fmt.Errorf("not enough data points")
 	}
 
 	// 获取最新的两个点
@@ -200,14 +207,14 @@ func (c *Cache[T]) PctChange() (float64, error) {
 
 func (c *Cache[T]) PctChangeWith(val float64) (float64, error) {
 	if c == nil {
-		return 0, nil
+		return 0, fmt.Errorf("cache is nil")
 	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	if len(c.Points) < 1 {
-		return 0, nil
+		return 0, fmt.Errorf("not enough data points")
 	}
 
 	// 获取最新的两个点
@@ -232,14 +239,14 @@ func (c *Cache[T]) PctChangeWith(val float64) (float64, error) {
 // Diff calculates the difference between the latest two points (current - previous)
 func (c *Cache[T]) Diff() (float64, error) {
 	if c == nil {
-		return 0, nil
+		return 0, fmt.Errorf("cache is nil")
 	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	if len(c.Points) < 2 {
-		return 0, nil
+		return 0, fmt.Errorf("not enough data points")
 	}
 
 	// 获取最新的两个点
@@ -257,14 +264,14 @@ func (c *Cache[T]) Diff() (float64, error) {
 
 func (c *Cache[T]) DiffWith(val float64) (float64, error) {
 	if c == nil {
-		return 0, nil
+		return 0, fmt.Errorf("cache is nil")
 	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	if len(c.Points) < 21 {
-		return 0, nil
+		return 0, fmt.Errorf("not enough data points")
 	}
 
 	// 获取最新的两个点
@@ -281,6 +288,9 @@ func (c *Cache[T]) DiffWith(val float64) (float64, error) {
 
 // PctChangeExceeds checks if the percentage change between the latest two points exceeds the specified threshold
 func (c *Cache[T]) PctChangeExceeds(threshold float64) (bool, error) {
+	if c == nil {
+		return false, fmt.Errorf("cache is nil")
+	}
 	pctChange, err := c.PctChange()
 	if err != nil {
 		return false, err
@@ -292,6 +302,9 @@ func (c *Cache[T]) PctChangeExceeds(threshold float64) (bool, error) {
 
 // DiffExceeds checks if the absolute difference between the latest two points exceeds the specified threshold
 func (c *Cache[T]) DiffExceeds(threshold float64) (bool, error) {
+	if c == nil {
+		return false, fmt.Errorf("cache is nil")
+	}
 	diff, err := c.Diff()
 	if err != nil {
 		return false, err
@@ -321,14 +334,14 @@ func (c *Cache[T]) Changed() bool {
 // PctChangeSince calculates Percentage Change between the latest value and the value from the specified time window ago
 func (c *Cache[T]) PctChangeSince(window string) (float64, error) {
 	if c == nil {
-		return 0, nil
+		return 0, fmt.Errorf("cache is nil")
 	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	if len(c.Points) == 0 {
-		return 0, nil
+		return 0, fmt.Errorf("no data points available")
 	}
 
 	// 获取最新值
@@ -383,14 +396,14 @@ func (c *Cache[T]) PctChangeSince(window string) (float64, error) {
 // DiffSince calculates the difference between the latest value and the value from the specified time window ago
 func (c *Cache[T]) DiffSince(window string) (float64, error) {
 	if c == nil {
-		return 0, nil
+		return 0, fmt.Errorf("cache is nil")
 	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	if len(c.Points) == 0 {
-		return 0, nil
+		return 0, fmt.Errorf("no data points available")
 	}
 
 	// 获取最新值
@@ -628,14 +641,14 @@ func (c *Cache[T]) FC(window string) (int, error) {
 // returns true if the bit at the specified index is set
 func (c *Cache[T]) Bit(index int) (bool, error) {
 	if c == nil {
-		return false, nil
+		return false, fmt.Errorf("cache is nil")
 	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	if len(c.Points) == 0 {
-		return false, nil
+		return false, fmt.Errorf("no data points available")
 	}
 
 	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
@@ -659,14 +672,14 @@ func (c *Cache[T]) Bit(index int) (bool, error) {
 // ByteBit(n, i) gets bit i (0-7) from byte n (0-based indexing)
 func (c *Cache[T]) ByteBit(n, i int) (bool, error) {
 	if c == nil {
-		return false, nil
+		return false, fmt.Errorf("cache is nil")
 	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	if len(c.Points) == 0 {
-		return false, nil
+		return false, fmt.Errorf("no data points available")
 	}
 
 	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
@@ -691,14 +704,14 @@ func (c *Cache[T]) ByteBit(n, i int) (bool, error) {
 // The []byte value is interpreted as a Little-Endian integer
 func (c *Cache[T]) BitAnd(mask uint64) (uint, error) {
 	if c == nil {
-		return 0, nil
+		return 0, fmt.Errorf("cache is nil")
 	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	if len(c.Points) == 0 {
-		return 0, nil
+		return 0, fmt.Errorf("no data points available")
 	}
 
 	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
@@ -722,14 +735,14 @@ func (c *Cache[T]) BitAnd(mask uint64) (uint, error) {
 // The []byte value is interpreted as a Little-Endian integer
 func (c *Cache[T]) BitOr(mask uint64) (uint, error) {
 	if c == nil {
-		return 0, nil
+		return 0, fmt.Errorf("cache is nil")
 	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	if len(c.Points) == 0 {
-		return 0, nil
+		return 0, fmt.Errorf("no data points available")
 	}
 
 	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
@@ -753,14 +766,14 @@ func (c *Cache[T]) BitOr(mask uint64) (uint, error) {
 // The []byte value is interpreted as a Little-Endian integer
 func (c *Cache[T]) BitXor(mask uint64) (uint, error) {
 	if c == nil {
-		return 0, nil
+		return 0, fmt.Errorf("cache is nil")
 	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	if len(c.Points) == 0 {
-		return 0, nil
+		return 0, fmt.Errorf("no data points available")
 	}
 
 	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
@@ -784,14 +797,14 @@ func (c *Cache[T]) BitXor(mask uint64) (uint, error) {
 // The []byte value is interpreted as a Little-Endian integer
 func (c *Cache[T]) BitClear(mask uint64) (uint, error) {
 	if c == nil {
-		return 0, nil
+		return 0, fmt.Errorf("cache is nil")
 	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	if len(c.Points) == 0 {
-		return 0, nil
+		return 0, fmt.Errorf("no data points available")
 	}
 
 	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
@@ -815,14 +828,14 @@ func (c *Cache[T]) BitClear(mask uint64) (uint, error) {
 // The []byte value is interpreted as a Little-Endian integer
 func (c *Cache[T]) BitNot() (uint, error) {
 	if c == nil {
-		return 0, nil
+		return 0, fmt.Errorf("cache is nil")
 	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	if len(c.Points) == 0 {
-		return 0, nil
+		return 0, fmt.Errorf("no data points available")
 	}
 
 	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
@@ -838,7 +851,7 @@ func (c *Cache[T]) BitNot() (uint, error) {
 
 		return uint(^value), nil
 	} else {
-		return 0, errors.New("value is not a []byte type")
+		return 0, fmt.Errorf("value is not a []byte type")
 	}
 }
 
