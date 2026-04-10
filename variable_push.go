@@ -14,9 +14,9 @@ func (v *Variable) GetPushValues(gcd, i int64) []*PushValue {
 	if v.Cache == nil {
 		return pushValues
 	}
-	if !v.TimestampUpdated() {
-		return pushValues
-	}
+	// if !v.TimestampUpdated() {
+	// 	return pushValues
+	// }
 	publishCycle := int64(*v.PublishCycle)
 	times := publishCycle / gcd
 	changed := v.ChangedWithLatestPushValue()
