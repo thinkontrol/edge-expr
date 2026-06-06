@@ -8,6 +8,32 @@ type NetInterface struct {
 	Addrs []string `json:"addrs" mapstructure:"addrs"`
 	IP    net.IP   `json:"ip" mapstructure:"ip"`
 }
+
+func (n *NetInterface) Equal(other *NetInterface) bool {
+	if n == nil && other == nil {
+		return true
+	}
+	if n == nil || other == nil {
+		return false
+	}
+	return n.Name == other.Name &&
+		n.Mac == other.Mac &&
+		sliceStringEqual(n.Addrs, other.Addrs) &&
+		n.IP.Equal(other.IP)
+}
+
+func sliceStringEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 type GSMInfo struct {
 	IpV4Up       bool   `json:"ipv4_up" mapstructure:"ipv4_up"`
 	IpV6Up       bool   `json:"ipv6_up" mapstructure:"ipv6_up"`
@@ -24,11 +50,46 @@ type GSMInfo struct {
 	Ipv6         string `json:"ipv6" mapstructure:"ipv6"`
 }
 
+func (g *GSMInfo) Equal(other *GSMInfo) bool {
+	if g == nil && other == nil {
+		return true
+	}
+	if g == nil || other == nil {
+		return false
+	}
+	return g.IpV4Up == other.IpV4Up &&
+		g.IpV6Up == other.IpV6Up &&
+		g.SerialNumber == other.SerialNumber &&
+		g.IMEI == other.IMEI &&
+		g.ICCID == other.ICCID &&
+		g.RSSI == other.RSSI &&
+		g.State == other.State &&
+		g.CNum == other.CNum &&
+		g.StateNum == other.StateNum &&
+		g.Operator == other.Operator &&
+		g.AccessTech == other.AccessTech &&
+		g.Ipv4 == other.Ipv4 &&
+		g.Ipv6 == other.Ipv6
+}
+
 type WifiInfo struct {
 	SSID        string `json:"ssid" mapstructure:"ssid"`
 	Quality     int    `json:"quality" mapstructure:"quality"`
 	SignalLevel int    `json:"signal_level" mapstructure:"signal_level"`
 	NoiseLevel  int    `json:"noise_level" mapstructure:"noise_level"`
+}
+
+func (w *WifiInfo) Equal(other *WifiInfo) bool {
+	if w == nil && other == nil {
+		return true
+	}
+	if w == nil || other == nil {
+		return false
+	}
+	return w.SSID == other.SSID &&
+		w.Quality == other.Quality &&
+		w.SignalLevel == other.SignalLevel &&
+		w.NoiseLevel == other.NoiseLevel
 }
 
 type LocalBridge struct {
