@@ -896,6 +896,11 @@ func (c *Cache[T]) cleanExpiredPointsUnsafe() {
 		}
 	}
 
+	if len(validPoints) == 0 && len(c.Points) > 0 {
+		// 保留最新的一个点，即使它已经过期
+		validPoints = append(validPoints, c.Points[len(c.Points)-1])
+	}
+
 	c.Points = validPoints
 }
 
