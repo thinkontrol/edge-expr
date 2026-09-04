@@ -5,6 +5,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -49,13 +50,13 @@ func ValidScript(plcVar map[string]string, script string) (string, error) {
 	js.Global().Get("console").Call("log", marshalJSON(env))
 	js.Global().Get("console").Call("log", script)
 
-	program, err := expr.Compile(script, expr.Env(env))
+	program, err := expr.Compile(script, expr.Env(env), BitFunc)
 	if err != nil {
-		return "", err
+		return "", errors.New("compile error: " + err.Error())
 	}
 	out, err := expr.Run(program, env)
 	if err != nil {
-		return "", err
+		return "", errors.New("runtime error: " + err.Error())
 	}
 	dt := InferTypeName(out)
 	if dt == "" {

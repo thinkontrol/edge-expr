@@ -887,15 +887,15 @@ func (dt DataType) GenerateRandomValue() (any, error) {
 	case DataTypeByte:
 		var arr [1]byte
 		rand.Read(arr[:])
-		return arr, nil
+		return arr[:], nil
 	case DataTypeWord:
 		var arr [2]byte
 		rand.Read(arr[:])
-		return arr, nil
+		return arr[:], nil
 	case DataTypeDWord:
 		var arr [4]byte
 		rand.Read(arr[:])
-		return arr, nil
+		return arr[:], nil
 	default:
 		return nil, fmt.Errorf("unsupported data type for random generation: %v", dt)
 	}
