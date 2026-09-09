@@ -2,6 +2,7 @@ package edgeexpr
 
 import (
 	"math"
+	"time"
 
 	"github.com/samber/lo"
 )
@@ -20,7 +21,7 @@ func (v *Variable) GetPushValues(gcd, i int64) []*PushValue {
 	publishCycle := int64(*v.PublishCycle)
 	times := publishCycle / gcd
 	changed := v.ChangedWithLatestPushValue()
-	if (publishCycle <= 0 && changed) || (times != 0 && i%times == 0) {
+	if (publishCycle <= 0 && changed) || (times > 0 && i%times == 0) {
 		switch cache := v.Cache.(type) {
 		case *Cache[float64]:
 			if pushValue := cache.PushValue(); pushValue != nil {
@@ -106,48 +107,68 @@ func (v *Variable) ChangedWithLatestPushValue() bool {
 	if v.LatestPush == nil {
 		return true
 	}
+	var changed bool
+	var lastPushTime *time.Time
 	switch cache := v.Cache.(type) {
 	case *Cache[float64]:
 		latestPush, ok := v.LatestPush.(Point[float64])
 		if !ok {
-			return true
+			changed = true
+			break
 		}
+		lastPushTime = latestPush.Timestamp
 		if v.DiffThreshold != nil {
-			return math.Abs(cache.Value()-latestPush.Value) >= *v.DiffThreshold
+			changed = math.Abs(cache.Value()-latestPush.Value) >= *v.DiffThreshold
+			break
 		}
 		if v.PctThreshold != nil {
 			percentageChange := lo.Ternary(latestPush.Value == 0, lo.Ternary(cache.Value() == 0, 0, math.MaxFloat64), ((cache.Value()-latestPush.Value)/latestPush.Value)*100)
-			return math.Abs(percentageChange) >= *v.PctThreshold
+			changed = math.Abs(percentageChange) >= *v.PctThreshold
+			break
 		}
-		return cache.Value() != latestPush.Value
+		changed = cache.Value() != latestPush.Value
 	case *Cache[bool]:
 		latestPush, ok := v.LatestPush.(Point[bool])
 		if !ok {
-			return true
+			changed = true
+		} else {
+			lastPushTime = latestPush.Timestamp
+			changed = cache.Value() != latestPush.Value
 		}
-		return cache.Value() != latestPush.Value
 	case *Cache[string]:
 		latestPush, ok := v.LatestPush.(Point[string])
 		if !ok {
-			return true
+			changed = true
+		} else {
+			lastPushTime = latestPush.Timestamp
+			changed = cache.Value() != latestPush.Value
 		}
-		return cache.Value() != latestPush.Value
 	case *Cache[[]byte]:
 		latestPush, ok := v.LatestPush.(Point[[]byte])
 		if !ok {
-			return true
+			changed = true
+			break
 		}
+		lastPushTime = latestPush.Timestamp
 		if len(cache.Value()) != len(latestPush.Value) {
-			return true
-		}
-		for i := range cache.Value() {
-			if cache.Value()[i] != latestPush.Value[i] {
-				return true
+			changed = true
+		} else {
+			for i := range cache.Value() {
+				if cache.Value()[i] != latestPush.Value[i] {
+					changed = true
+					break
+				}
 			}
 		}
-		return false
 		// Supported cache types
 	default:
 		return true // Unsupported cache type
 	}
+	if changed {
+		return true
+	}
+	if v.PublishCycle != nil && *v.PublishCycle < 0 {
+		return lastPushTime == nil || time.Since(*lastPushTime) > (*v.PublishCycle).Abs()
+	}
+	return false
 }
