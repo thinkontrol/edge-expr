@@ -25,17 +25,18 @@ func (v *Variable) GetPushValues(gcd, i int64) []*PushValue {
 		switch cache := v.Cache.(type) {
 		case *Cache[float64]:
 			if pushValue := cache.PushValue(); pushValue != nil {
-				if changed && len(cache.Points) >= 2 {
-					if p, ok := v.LatestPush.(Point[float64]); ok {
-						if p.Timestamp != nil && cache.Points[len(cache.Points)-2].Timestamp != nil && !p.Timestamp.Equal(*cache.Points[len(cache.Points)-2].Timestamp) {
-							pushValues = append(pushValues, &PushValue{
-								// Key:       v.Key,
-								Value:     cache.Points[len(cache.Points)-2].Value,
-								Timestamp: cache.Points[len(cache.Points)-2].Timestamp,
-							})
-						}
-					}
-				}
+				// Explain: 拐点数据
+				// if changed && len(cache.Points) >= 2 {
+				// 	if p, ok := v.LatestPush.(Point[float64]); ok {
+				// 		if p.Timestamp != nil && cache.Points[len(cache.Points)-2].Timestamp != nil && !p.Timestamp.Equal(*cache.Points[len(cache.Points)-2].Timestamp) {
+				// 			pushValues = append(pushValues, &PushValue{
+				// 				// Key:       v.Key,
+				// 				Value:     cache.Points[len(cache.Points)-2].Value,
+				// 				Timestamp: cache.Points[len(cache.Points)-2].Timestamp,
+				// 			})
+				// 		}
+				// 	}
+				// }
 				pushValues = append(pushValues, pushValue)
 				v.LatestPush = cache.Points[len(cache.Points)-1]
 			}
