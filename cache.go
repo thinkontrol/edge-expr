@@ -605,8 +605,75 @@ func (c *Cache) FC(window string) (int, error) {
 	return fallingCount, nil
 }
 
-// Only for []byte type
-// []byte value act like a whole bit array
+// bitValue converts supported bit values to a little-endian uint64.
+func bitValue(value any) (uint64, error) {
+	switch val := value.(type) {
+	case []byte:
+		var result uint64
+		for i, b := range val {
+			if i >= 8 {
+				break
+			}
+			result |= uint64(b) << (i * 8)
+		}
+		return result, nil
+	case uint32:
+		return uint64(val), nil
+	case uint64:
+		return val, nil
+	default:
+		return 0, fmt.Errorf("value(%v)[%T] is not a supported bit type", value, value)
+	}
+}
+
+func bitAt(value any, index int) (bool, error) {
+	if index < 0 {
+		return false, fmt.Errorf("index(%d) is out of range", index)
+	}
+
+	bitWidth := 64
+	switch val := value.(type) {
+	case []byte:
+		bitWidth = len(val) * 8
+		if index >= bitWidth {
+			return false, fmt.Errorf("index(%d) is out of range", index)
+		}
+		return (val[index/8] & (uint8(1) << (index % 8))) != 0, nil
+	case uint32:
+		bitWidth = 32
+	case uint64:
+	default:
+		return false, fmt.Errorf("value(%v)[%T] is not a supported bit type", value, value)
+	}
+	if index >= bitWidth {
+		return false, fmt.Errorf("index(%d) is out of range", index)
+	}
+
+	converted, err := bitValue(value)
+	if err != nil {
+		return false, err
+	}
+	return (converted & (uint64(1) << index)) != 0, nil
+}
+
+func bitNot(value any) (uint, error) {
+	switch val := value.(type) {
+	case uint32:
+		return uint(^val), nil
+	case uint64:
+		return uint(^val), nil
+	case []byte:
+		converted, err := bitValue(val)
+		if err != nil {
+			return 0, err
+		}
+		return uint(^converted), nil
+	default:
+		return 0, fmt.Errorf("value(%v)[%T] is not a supported bit type", value, value)
+	}
+}
+
+// []byte values act like a whole bit array; integer values use their native width.
 // index is the bit position, starting from 0
 // returns true if the bit at the specified index is set
 func (c *Cache) Bit(index int) (bool, error) {
@@ -621,25 +688,12 @@ func (c *Cache) Bit(index int) (bool, error) {
 		return false, fmt.Errorf("no data points available")
 	}
 
-	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
-		if index >= 0 && index < len(val)*8 {
-			byteIndex := index / 8
-			bitIndex := index % 8
-			if byteIndex < len(val) {
-				return (val[byteIndex] & (1 << bitIndex)) != 0, nil
-			} else {
-				return false, fmt.Errorf("index(%d) is out of range", index)
-			}
-		} else {
-			return false, fmt.Errorf("index(%d) is out of range", index)
-		}
-	} else {
-		return false, fmt.Errorf("value(%v)[%T] is not a []byte type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
-	}
+	value := c.Points[len(c.Points)-1].Value
+	return bitAt(value, index)
 }
 
-// ByteBit returns the i-th bit of the n-th byte in the latest []byte value
-// ByteBit(n, i) gets bit i (0-7) from byte n (0-based indexing)
+// ByteBit returns the i-th bit of the n-th byte in the latest bit value.
+// ByteBit(n, i) gets bit i (0-7) from byte n (0-based indexing).
 func (c *Cache) ByteBit(n, i int) (bool, error) {
 	if c == nil {
 		return false, fmt.Errorf("cache is nil")
@@ -652,22 +706,14 @@ func (c *Cache) ByteBit(n, i int) (bool, error) {
 		return false, fmt.Errorf("no data points available")
 	}
 
-	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
-		// 检查字节索引是否有效
-		if n < 0 || n >= len(val) {
-			return false, fmt.Errorf("byte index(%d) is out of range", n)
-		}
-
-		// 检查位索引是否有效 (0-7)
-		if i < 0 || i > 7 {
-			return false, fmt.Errorf("bit index(%d) is out of range (must be 0-7)", i)
-		}
-
-		// 获取第n个字节的第i位
-		return (val[n] & (1 << i)) != 0, nil
-	} else {
-		return false, fmt.Errorf("value(%v)[%T] is not a []byte type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
+	if n < 0 {
+		return false, fmt.Errorf("byte index(%d) is out of range", n)
 	}
+	if i < 0 || i > 7 {
+		return false, fmt.Errorf("bit index(%d) is out of range (must be 0-7)", i)
+	}
+
+	return bitAt(c.Points[len(c.Points)-1].Value, n*8+i)
 }
 
 // BitAnd performs a bitwise AND operation between the latest []byte value and the mask
@@ -684,21 +730,11 @@ func (c *Cache) BitAnd(mask uint64) (uint, error) {
 		return 0, fmt.Errorf("no data points available")
 	}
 
-	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
-		var value uint64
-		// Interpret []byte as Little Endian integer
-		// Index 0 is the least significant byte
-		for i, b := range val {
-			if i >= 8 {
-				break
-			}
-			value |= uint64(b) << (i * 8)
-		}
-
-		return uint(value & mask), nil
-	} else {
-		return 0, fmt.Errorf("value(%v)[%T] is not a []byte type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
+	value, err := bitValue(c.Points[len(c.Points)-1].Value)
+	if err != nil {
+		return 0, err
 	}
+	return uint(value & mask), nil
 }
 
 // BitOr performs a bitwise OR operation between the latest []byte value and the mask
@@ -715,21 +751,11 @@ func (c *Cache) BitOr(mask uint64) (uint, error) {
 		return 0, fmt.Errorf("no data points available")
 	}
 
-	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
-		var value uint64
-		// Interpret []byte as Little Endian integer
-		// Index 0 is the least significant byte
-		for i, b := range val {
-			if i >= 8 {
-				break
-			}
-			value |= uint64(b) << (i * 8)
-		}
-
-		return uint(value | mask), nil
-	} else {
-		return 0, fmt.Errorf("value(%v)[%T] is not a []byte type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
+	value, err := bitValue(c.Points[len(c.Points)-1].Value)
+	if err != nil {
+		return 0, err
 	}
+	return uint(value | mask), nil
 }
 
 // BitXor performs a bitwise XOR operation between the latest []byte value and the mask
@@ -746,21 +772,11 @@ func (c *Cache) BitXor(mask uint64) (uint, error) {
 		return 0, fmt.Errorf("no data points available")
 	}
 
-	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
-		var value uint64
-		// Interpret []byte as Little Endian integer
-		// Index 0 is the least significant byte
-		for i, b := range val {
-			if i >= 8 {
-				break
-			}
-			value |= uint64(b) << (i * 8)
-		}
-
-		return uint(value ^ mask), nil
-	} else {
-		return 0, fmt.Errorf("value(%v)[%T] is not a []byte type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
+	value, err := bitValue(c.Points[len(c.Points)-1].Value)
+	if err != nil {
+		return 0, err
 	}
+	return uint(value ^ mask), nil
 }
 
 // BitClear performs a bitwise AND NOT operation (bit clear) between the latest []byte value and the mask
@@ -777,21 +793,11 @@ func (c *Cache) BitClear(mask uint64) (uint, error) {
 		return 0, fmt.Errorf("no data points available")
 	}
 
-	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
-		var value uint64
-		// Interpret []byte as Little Endian integer
-		// Index 0 is the least significant byte
-		for i, b := range val {
-			if i >= 8 {
-				break
-			}
-			value |= uint64(b) << (i * 8)
-		}
-
-		return uint(value &^ mask), nil
-	} else {
-		return 0, fmt.Errorf("value(%v)[%T] is not a []byte type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
+	value, err := bitValue(c.Points[len(c.Points)-1].Value)
+	if err != nil {
+		return 0, err
 	}
+	return uint(value &^ mask), nil
 }
 
 // BitNot performs a bitwise NOT operation on the latest []byte value
@@ -808,21 +814,7 @@ func (c *Cache) BitNot() (uint, error) {
 		return 0, fmt.Errorf("no data points available")
 	}
 
-	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
-		var value uint64
-		// Interpret []byte as Little Endian integer
-		// Index 0 is the least significant byte
-		for i, b := range val {
-			if i >= 8 {
-				break
-			}
-			value |= uint64(b) << (i * 8)
-		}
-
-		return uint(^value), nil
-	} else {
-		return 0, fmt.Errorf("value(%v)[%T] is not a []byte type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
-	}
+	return bitNot(c.Points[len(c.Points)-1].Value)
 }
 
 func (c *Cache) AddPoint(value any, timestamp *time.Time) {
