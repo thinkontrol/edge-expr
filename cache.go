@@ -22,11 +22,15 @@ type Cache struct {
 	mu             sync.RWMutex // 读写锁保护Points切片
 }
 
-func NewCache(expireDuration time.Duration) *Cache {
-	return &Cache{
+func NewCache(expireDuration *time.Duration) *Cache {
+	cache := &Cache{
 		Points:         make([]Point, 0),
-		ExpireDuration: expireDuration,
+		ExpireDuration: time.Minute,
 	}
+	if expireDuration != nil {
+		cache.ExpireDuration = *expireDuration
+	}
+	return cache
 }
 
 // func (c *Cache) PushValue() *PushValue {

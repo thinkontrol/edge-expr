@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/expr-lang/expr/vm"
-	"github.com/samber/lo"
 )
 
 type Variable struct {
@@ -92,10 +91,7 @@ func (v *Variable) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("invalid cache format: %v", err)
 		}
 	}
-	if v.CacheDuration == nil {
-		v.CacheDuration = lo.ToPtr(time.Minute)
-	}
-	v.Cache = NewCache(*v.CacheDuration) // Create cache instance based on DataType and CacheDuration
+	v.Cache = NewCache(v.CacheDuration) // Create cache instance based on DataType and CacheDuration
 	return nil
 }
 
