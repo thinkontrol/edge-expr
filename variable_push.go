@@ -1,8 +1,11 @@
 package edgeexpr
 
 import (
+	"math"
 	"reflect"
 	"time"
+
+	"github.com/samber/lo"
 )
 
 func (v *Variable) GetPushValues(gcd, i int64) []*PushValue {
@@ -39,8 +42,34 @@ func (v *Variable) ChangedWithLatestPushValue() bool {
 	if v.LatestPush == nil {
 		return true
 	}
-	changed := reflect.DeepEqual(v.Cache.Value(), v.LatestPush.Value)
+	// changed := reflect.DeepEqual(v.Cache.Value(), v.LatestPush.Value)
+	var changed bool
 	lastPushTime := v.LatestPush.Timestamp
+
+	switch cache := v.Cache.Value().(type) {
+	case bool, string:
+		changed = cache != v.LatestPush.Value
+	case []byte:
+		changed = reflect.DeepEqual(cache, v.LatestPush.Value)
+	default:
+		fv1, err := ConvertToFloat64(cache)
+		fv2, err2 := ConvertToFloat64(v.LatestPush.Value)
+		if err != nil || err2 != nil {
+			changed = reflect.DeepEqual(cache, v.LatestPush.Value)
+		} else {
+			if v.DiffThreshold != nil {
+				changed = math.Abs(fv1-fv2) >= *v.DiffThreshold
+				break
+			}
+			if v.PctThreshold != nil {
+				percentageChange := lo.Ternary(fv2 == 0, lo.Ternary(fv1 == 0, 0, math.MaxFloat64), ((fv1-fv2)/fv2)*100)
+				changed = math.Abs(percentageChange) >= *v.PctThreshold
+				break
+			}
+			changed = fv1 != fv2
+		}
+	}
+
 	if changed {
 		return true
 	}

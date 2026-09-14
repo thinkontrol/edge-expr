@@ -185,7 +185,7 @@ func (c *Cache) PctChange() (float64, error) {
 	previousVal, err2 := ConvertToFloat64(c.Points[len(c.Points)-2].Value)
 
 	if err1 != nil || err2 != nil {
-		return 0, errors.New("value is not a float64 type")
+		return 0, fmt.Errorf("value(%v)[%T] or (%v)[%T] is not a float64 type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-2].Value, c.Points[len(c.Points)-2].Value)
 	}
 
 	// 如果前一个值为0，无法计算百分比变化
@@ -216,7 +216,7 @@ func (c *Cache) PctChangeWith(val float64) (float64, error) {
 	// 获取最新的两个点
 	currentVal, err1 := ConvertToFloat64(c.Points[len(c.Points)-1].Value)
 	if err1 != nil {
-		return 0, errors.New("value is not a float64 type")
+		return 0, fmt.Errorf("value(%v)[%T] is not a float64 type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
 	}
 
 	// 如果前一个值为0，无法计算百分比变化
@@ -250,7 +250,7 @@ func (c *Cache) Diff() (float64, error) {
 	previousVal, err2 := ConvertToFloat64(c.Points[len(c.Points)-2].Value)
 
 	if err1 != nil || err2 != nil {
-		return 0, errors.New("value is not a float64 type")
+		return 0, fmt.Errorf("value(%v)[%T] or (%v)[%T] is not a float64 type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-2].Value, c.Points[len(c.Points)-2].Value)
 	}
 
 	// 计算差值：current - previous
@@ -273,7 +273,7 @@ func (c *Cache) DiffWith(val float64) (float64, error) {
 	// 获取最新的两个点
 	currentVal, err1 := ConvertToFloat64(c.Points[len(c.Points)-1].Value)
 	if err1 != nil {
-		return 0, errors.New("value is not a float64 type")
+		return 0, fmt.Errorf("value(%v)[%T] is not a float64 type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
 	}
 
 	// 计算差值：current - previous
@@ -342,7 +342,7 @@ func (c *Cache) PctChangeSince(window string) (float64, error) {
 	// 获取最新值
 	currentVal, err := ConvertToFloat64(c.Points[len(c.Points)-1].Value)
 	if err != nil {
-		return 0, errors.New("value is not a float64 type")
+		return 0, fmt.Errorf("value(%v)[%T] is not a float64 type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
 	}
 
 	// 解析时间窗口
@@ -366,7 +366,7 @@ func (c *Cache) PctChangeSince(window string) (float64, error) {
 				found = true
 				break
 			} else {
-				return 0, errors.New("value is not a float64 type")
+				return 0, fmt.Errorf("value(%v)[%T] is not a float64 type", c.Points[i].Value, c.Points[i].Value)
 			}
 		}
 	}
@@ -404,7 +404,7 @@ func (c *Cache) DiffSince(window string) (float64, error) {
 	// 获取最新值
 	currentVal, err := ConvertToFloat64(c.Points[len(c.Points)-1].Value)
 	if err != nil {
-		return 0, errors.New("value is not a float64 type")
+		return 0, fmt.Errorf("value(%v)[%T] is not a float64 type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
 	}
 
 	// 解析时间窗口
@@ -428,7 +428,7 @@ func (c *Cache) DiffSince(window string) (float64, error) {
 				found = true
 				break
 			} else {
-				return 0, errors.New("value is not a float64 type")
+				return 0, fmt.Errorf("value(%v)[%T] is not a float64 type", c.Points[i].Value, c.Points[i].Value)
 			}
 		}
 	}
@@ -515,10 +515,10 @@ func (c *Cache) Rising() (bool, error) {
 		if val, ok := c.Points[len(c.Points)-2].Value.(bool); ok && !val {
 			return true, nil
 		} else {
-			return false, errors.New("value is not a bool type")
+			return false, fmt.Errorf("value(%v)[%T] is not a bool type", c.Points[len(c.Points)-2].Value, c.Points[len(c.Points)-2].Value)
 		}
 	} else {
-		return false, errors.New("value is not a bool type")
+		return false, fmt.Errorf("value(%v)[%T] is not a bool type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
 	}
 }
 
@@ -538,10 +538,10 @@ func (c *Cache) Falling() (bool, error) {
 		if val, ok := c.Points[len(c.Points)-2].Value.(bool); ok && val {
 			return true, nil
 		} else {
-			return false, errors.New("value is not a bool type")
+			return false, fmt.Errorf("value(%v)[%T] is not a bool type", c.Points[len(c.Points)-2].Value, c.Points[len(c.Points)-2].Value)
 		}
 	} else {
-		return false, errors.New("value is not a bool type")
+		return false, fmt.Errorf("value(%v)[%T] is not a bool type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
 	}
 }
 
@@ -554,7 +554,7 @@ func (c *Cache) RC(window string) (int, error) {
 
 	// 检查是否为 bool 类型
 	if _, ok := points[0].Value.(bool); !ok {
-		return 0, errors.New("value is not a bool type")
+		return 0, fmt.Errorf("value(%v)[%T] is not a bool type", points[0].Value, points[0].Value)
 	}
 
 	risingCount := 0
@@ -563,7 +563,7 @@ func (c *Cache) RC(window string) (int, error) {
 		currVal, ok2 := points[i].Value.(bool)
 
 		if !ok1 || !ok2 {
-			return 0, errors.New("value is not a bool type")
+			return 0, fmt.Errorf("value(%v)[%T] is not a bool type", points[i].Value, points[i].Value)
 		}
 
 		// 从 false 到 true 的变化
@@ -584,7 +584,7 @@ func (c *Cache) FC(window string) (int, error) {
 
 	// 检查是否为 bool 类型
 	if _, ok := points[0].Value.(bool); !ok {
-		return 0, errors.New("value is not a bool type")
+		return 0, fmt.Errorf("value(%v)[%T] is not a bool type", points[0].Value, points[0].Value)
 	}
 
 	fallingCount := 0
@@ -593,7 +593,7 @@ func (c *Cache) FC(window string) (int, error) {
 		currVal, ok2 := points[i].Value.(bool)
 
 		if !ok1 || !ok2 {
-			return 0, errors.New("value is not a bool type")
+			return 0, fmt.Errorf("value(%v)[%T] is not a bool type", points[i].Value, points[i].Value)
 		}
 
 		// 从 true 到 false 的变化
@@ -628,13 +628,13 @@ func (c *Cache) Bit(index int) (bool, error) {
 			if byteIndex < len(val) {
 				return (val[byteIndex] & (1 << bitIndex)) != 0, nil
 			} else {
-				return false, errors.New("index out of range")
+				return false, fmt.Errorf("index(%d) is out of range", index)
 			}
 		} else {
-			return false, errors.New("index out of range")
+			return false, fmt.Errorf("index(%d) is out of range", index)
 		}
 	} else {
-		return false, errors.New("value is not a []byte type")
+		return false, fmt.Errorf("value(%v)[%T] is not a []byte type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
 	}
 }
 
@@ -655,18 +655,18 @@ func (c *Cache) ByteBit(n, i int) (bool, error) {
 	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
 		// 检查字节索引是否有效
 		if n < 0 || n >= len(val) {
-			return false, errors.New("byte index out of range")
+			return false, fmt.Errorf("byte index(%d) is out of range", n)
 		}
 
 		// 检查位索引是否有效 (0-7)
 		if i < 0 || i > 7 {
-			return false, errors.New("bit index out of range (must be 0-7)")
+			return false, fmt.Errorf("bit index(%d) is out of range (must be 0-7)", i)
 		}
 
 		// 获取第n个字节的第i位
 		return (val[n] & (1 << i)) != 0, nil
 	} else {
-		return false, errors.New("value is not a []byte type")
+		return false, fmt.Errorf("value(%v)[%T] is not a []byte type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
 	}
 }
 
@@ -697,7 +697,7 @@ func (c *Cache) BitAnd(mask uint64) (uint, error) {
 
 		return uint(value & mask), nil
 	} else {
-		return 0, errors.New("value is not a []byte type")
+		return 0, fmt.Errorf("value(%v)[%T] is not a []byte type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
 	}
 }
 
@@ -728,7 +728,7 @@ func (c *Cache) BitOr(mask uint64) (uint, error) {
 
 		return uint(value | mask), nil
 	} else {
-		return 0, errors.New("value is not a []byte type")
+		return 0, fmt.Errorf("value(%v)[%T] is not a []byte type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
 	}
 }
 
@@ -759,7 +759,7 @@ func (c *Cache) BitXor(mask uint64) (uint, error) {
 
 		return uint(value ^ mask), nil
 	} else {
-		return 0, errors.New("value is not a []byte type")
+		return 0, fmt.Errorf("value(%v)[%T] is not a []byte type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
 	}
 }
 
@@ -790,7 +790,7 @@ func (c *Cache) BitClear(mask uint64) (uint, error) {
 
 		return uint(value &^ mask), nil
 	} else {
-		return 0, errors.New("value is not a []byte type")
+		return 0, fmt.Errorf("value(%v)[%T] is not a []byte type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
 	}
 }
 
@@ -821,7 +821,7 @@ func (c *Cache) BitNot() (uint, error) {
 
 		return uint(^value), nil
 	} else {
-		return 0, fmt.Errorf("value is not a []byte type")
+		return 0, fmt.Errorf("value(%v)[%T] is not a []byte type", c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-1].Value)
 	}
 }
 
