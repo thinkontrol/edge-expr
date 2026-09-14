@@ -4,66 +4,67 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"reflect"
 	"sync"
 	"time"
+
+	"github.com/samber/lo"
 )
 
-type Point[T float64 | bool | string | []byte] struct {
-	Value     T
+type Point struct {
+	Value     any
 	Timestamp *time.Time
 }
 
-type Cache[T float64 | bool | string | []byte] struct {
-	Points         []Point[T]
+type Cache struct {
+	Points         []Point
 	ExpireDuration time.Duration
 	mu             sync.RWMutex // 读写锁保护Points切片
 }
 
-func NewCache[T float64 | bool | string | []byte](expireDuration time.Duration) *Cache[T] {
-	return &Cache[T]{
-		Points:         make([]Point[T], 0),
+func NewCache(expireDuration time.Duration) *Cache {
+	return &Cache{
+		Points:         make([]Point, 0),
 		ExpireDuration: expireDuration,
 	}
 }
 
-func (c *Cache[T]) PushValue() *PushValue {
+// func (c *Cache) PushValue() *PushValue {
+// 	c.mu.RLock()
+// 	defer c.mu.RUnlock()
+
+// 	if len(c.Points) == 0 {
+// 		return nil
+// 	}
+// 	return &PushValue{
+// 		// Key:       key,
+// 		Value:     c.Points[len(c.Points)-1].Value,
+// 		Timestamp: c.Points[len(c.Points)-1].Timestamp,
+// 	}
+// }
+
+func (c *Cache) Value() any {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	if len(c.Points) == 0 {
 		return nil
 	}
-	return &PushValue{
-		// Key:       key,
-		Value:     c.Points[len(c.Points)-1].Value,
-		Timestamp: c.Points[len(c.Points)-1].Timestamp,
-	}
-}
-
-func (c *Cache[T]) Value() T {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	var zeroValue T
-	if len(c.Points) == 0 {
-		return zeroValue
-	}
 	return c.Points[len(c.Points)-1].Value
 }
 
-func (c *Cache[T]) Latest() T {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+// func (c *Cache) Latest() any {
+// 	c.mu.RLock()
+// 	defer c.mu.RUnlock()
 
-	var zeroValue T
-	if len(c.Points) == 0 {
-		return zeroValue
-	}
-	return c.Points[len(c.Points)-1].Value
-}
+// 	if len(c.Points) == 0 {
+// 		return nil
+// 	}
+// 	return c.Points[len(c.Points)-1].Value
+// }
 
 // Timestamp returns the timestamp of the latest value
-func (c *Cache[T]) Timestamp() *time.Time {
+func (c *Cache) Timestamp() *time.Time {
 	if c == nil {
 		return nil
 	}
@@ -78,24 +79,24 @@ func (c *Cache[T]) Timestamp() *time.Time {
 }
 
 // Point returns the latest point (value and timestamp)
-func (c *Cache[T]) Point() *Point[T] {
-	if c == nil {
-		return nil
-	}
+// func (c *Cache) Point() *Point {
+// 	if c == nil {
+// 		return nil
+// 	}
 
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+// 	c.mu.RLock()
+// 	defer c.mu.RUnlock()
 
-	if len(c.Points) == 0 {
-		return nil
-	}
-	// 返回最新点的副本
-	latest := c.Points[len(c.Points)-1]
-	return &latest
-}
+// 	if len(c.Points) == 0 {
+// 		return nil
+// 	}
+// 	// 返回最新点的副本
+// 	latest := c.Points[len(c.Points)-1]
+// 	return &latest
+// }
 
 // Len returns the number of points in the cache
-func (c *Cache[T]) Len() int {
+func (c *Cache) Len() int {
 	if c == nil {
 		return 0
 	}
@@ -107,7 +108,7 @@ func (c *Cache[T]) Len() int {
 }
 
 // MA calculates Moving Average within the specified time window
-func (c *Cache[T]) MA(window string) (float64, error) {
+func (c *Cache) MA(window string) (float64, error) {
 	if c == nil {
 		return 0, fmt.Errorf("cache is nil")
 	}
@@ -117,20 +118,13 @@ func (c *Cache[T]) MA(window string) (float64, error) {
 	}
 
 	// 使用类型断言检查是否为 float64
-	var sum float64
-	for _, point := range points {
-		if val, ok := any(point.Value).(float64); ok {
-			sum += val
-		} else {
-			return 0, errors.New("value is not a float64 type")
-		}
-	}
-	mean := sum / float64(len(points))
-	return mean, nil
+	return lo.MeanByErr(points, func(p Point) (float64, error) {
+		return ConvertToFloat64(p.Value)
+	})
 }
 
 // StdDev calculates Standard Deviation within the specified time window
-func (c *Cache[T]) StdDev(window string) (float64, error) {
+func (c *Cache) StdDev(window string) (float64, error) {
 	if c == nil {
 		return 0, fmt.Errorf("cache is nil")
 	}
@@ -143,36 +137,34 @@ func (c *Cache[T]) StdDev(window string) (float64, error) {
 		return 0, fmt.Errorf("at least two data points are required to calculate standard deviation")
 	}
 
-	// 检查所有值是否为 float64 类型并计算平均值
-	var sum float64
-	var values []float64
-
-	for _, point := range points {
-		if val, ok := any(point.Value).(float64); ok {
-			sum += val
-			values = append(values, val)
-		} else {
-			return 0, errors.New("value is not a float64 type")
-		}
+	mean, err := lo.MeanByErr(points, func(p Point) (float64, error) {
+		return ConvertToFloat64(p.Value)
+	})
+	if err != nil {
+		return 0, err
 	}
 
-	mean := sum / float64(len(values))
+	squaredDiffSum, err := lo.SumByErr(points, func(p Point) (float64, error) {
+		f, err := ConvertToFloat64(p.Value)
+		if err != nil {
+			return 0, err
+		}
+		return math.Pow(f-mean, 2), nil
+	})
+
+	if err != nil {
+		return 0, err
+	}
 
 	// 计算方差
-	var variance float64
-	for _, val := range values {
-		diff := val - mean
-		variance += diff * diff
-	}
-	variance = variance / float64(len(values))
-
+	variance := squaredDiffSum / float64(len(points))
 	// 计算标准差（方差的平方根）
 	standardDeviation := math.Sqrt(variance)
 	return standardDeviation, nil
 }
 
 // PctChange calculates Percentage Change between the latest two points
-func (c *Cache[T]) PctChange() (float64, error) {
+func (c *Cache) PctChange() (float64, error) {
 	if c == nil {
 		return 0, fmt.Errorf("cache is nil")
 	}
@@ -185,10 +177,10 @@ func (c *Cache[T]) PctChange() (float64, error) {
 	}
 
 	// 获取最新的两个点
-	currentVal, ok1 := any(c.Points[len(c.Points)-1].Value).(float64)
-	previousVal, ok2 := any(c.Points[len(c.Points)-2].Value).(float64)
+	currentVal, err1 := ConvertToFloat64(c.Points[len(c.Points)-1].Value)
+	previousVal, err2 := ConvertToFloat64(c.Points[len(c.Points)-2].Value)
 
-	if !ok1 || !ok2 {
+	if err1 != nil || err2 != nil {
 		return 0, errors.New("value is not a float64 type")
 	}
 
@@ -205,7 +197,7 @@ func (c *Cache[T]) PctChange() (float64, error) {
 	return percentageChange, nil
 }
 
-func (c *Cache[T]) PctChangeWith(val float64) (float64, error) {
+func (c *Cache) PctChangeWith(val float64) (float64, error) {
 	if c == nil {
 		return 0, fmt.Errorf("cache is nil")
 	}
@@ -218,8 +210,8 @@ func (c *Cache[T]) PctChangeWith(val float64) (float64, error) {
 	}
 
 	// 获取最新的两个点
-	currentVal, ok1 := any(c.Points[len(c.Points)-1].Value).(float64)
-	if !ok1 {
+	currentVal, err1 := ConvertToFloat64(c.Points[len(c.Points)-1].Value)
+	if err1 != nil {
 		return 0, errors.New("value is not a float64 type")
 	}
 
@@ -237,7 +229,7 @@ func (c *Cache[T]) PctChangeWith(val float64) (float64, error) {
 }
 
 // Diff calculates the difference between the latest two points (current - previous)
-func (c *Cache[T]) Diff() (float64, error) {
+func (c *Cache) Diff() (float64, error) {
 	if c == nil {
 		return 0, fmt.Errorf("cache is nil")
 	}
@@ -250,10 +242,10 @@ func (c *Cache[T]) Diff() (float64, error) {
 	}
 
 	// 获取最新的两个点
-	currentVal, ok1 := any(c.Points[len(c.Points)-1].Value).(float64)
-	previousVal, ok2 := any(c.Points[len(c.Points)-2].Value).(float64)
+	currentVal, err1 := ConvertToFloat64(c.Points[len(c.Points)-1].Value)
+	previousVal, err2 := ConvertToFloat64(c.Points[len(c.Points)-2].Value)
 
-	if !ok1 || !ok2 {
+	if err1 != nil || err2 != nil {
 		return 0, errors.New("value is not a float64 type")
 	}
 
@@ -262,7 +254,7 @@ func (c *Cache[T]) Diff() (float64, error) {
 	return difference, nil
 }
 
-func (c *Cache[T]) DiffWith(val float64) (float64, error) {
+func (c *Cache) DiffWith(val float64) (float64, error) {
 	if c == nil {
 		return 0, fmt.Errorf("cache is nil")
 	}
@@ -275,9 +267,8 @@ func (c *Cache[T]) DiffWith(val float64) (float64, error) {
 	}
 
 	// 获取最新的两个点
-	currentVal, ok1 := any(c.Points[len(c.Points)-1].Value).(float64)
-
-	if !ok1 {
+	currentVal, err1 := ConvertToFloat64(c.Points[len(c.Points)-1].Value)
+	if err1 != nil {
 		return 0, errors.New("value is not a float64 type")
 	}
 
@@ -287,7 +278,7 @@ func (c *Cache[T]) DiffWith(val float64) (float64, error) {
 }
 
 // PctChangeExceeds checks if the percentage change between the latest two points exceeds the specified threshold
-func (c *Cache[T]) PctChangeExceeds(threshold float64) (bool, error) {
+func (c *Cache) PctChangeExceeds(threshold float64) (bool, error) {
 	if c == nil {
 		return false, fmt.Errorf("cache is nil")
 	}
@@ -301,7 +292,7 @@ func (c *Cache[T]) PctChangeExceeds(threshold float64) (bool, error) {
 }
 
 // DiffExceeds checks if the absolute difference between the latest two points exceeds the specified threshold
-func (c *Cache[T]) DiffExceeds(threshold float64) (bool, error) {
+func (c *Cache) DiffExceeds(threshold float64) (bool, error) {
 	if c == nil {
 		return false, fmt.Errorf("cache is nil")
 	}
@@ -315,7 +306,7 @@ func (c *Cache[T]) DiffExceeds(threshold float64) (bool, error) {
 }
 
 // Changed checks if the latest two values are different
-func (c *Cache[T]) Changed() bool {
+func (c *Cache) Changed() bool {
 	if c == nil {
 		return false
 	}
@@ -328,11 +319,11 @@ func (c *Cache[T]) Changed() bool {
 	}
 
 	// 比较最新的两个点的值是否不同
-	return !isValueEqual(c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-2].Value)
+	return !reflect.DeepEqual(c.Points[len(c.Points)-1].Value, c.Points[len(c.Points)-2].Value)
 }
 
 // PctChangeSince calculates Percentage Change between the latest value and the value from the specified time window ago
-func (c *Cache[T]) PctChangeSince(window string) (float64, error) {
+func (c *Cache) PctChangeSince(window string) (float64, error) {
 	if c == nil {
 		return 0, fmt.Errorf("cache is nil")
 	}
@@ -345,8 +336,8 @@ func (c *Cache[T]) PctChangeSince(window string) (float64, error) {
 	}
 
 	// 获取最新值
-	currentVal, ok := any(c.Points[len(c.Points)-1].Value).(float64)
-	if !ok {
+	currentVal, err := ConvertToFloat64(c.Points[len(c.Points)-1].Value)
+	if err != nil {
 		return 0, errors.New("value is not a float64 type")
 	}
 
@@ -366,7 +357,7 @@ func (c *Cache[T]) PctChangeSince(window string) (float64, error) {
 
 	for i := len(c.Points) - 1; i >= 0; i-- {
 		if c.Points[i].Timestamp != nil && c.Points[i].Timestamp.Before(targetTime) {
-			if val, ok := any(c.Points[i].Value).(float64); ok {
+			if val, err := ConvertToFloat64(c.Points[i].Value); err == nil {
 				baseVal = val
 				found = true
 				break
@@ -394,7 +385,7 @@ func (c *Cache[T]) PctChangeSince(window string) (float64, error) {
 }
 
 // DiffSince calculates the difference between the latest value and the value from the specified time window ago
-func (c *Cache[T]) DiffSince(window string) (float64, error) {
+func (c *Cache) DiffSince(window string) (float64, error) {
 	if c == nil {
 		return 0, fmt.Errorf("cache is nil")
 	}
@@ -407,8 +398,8 @@ func (c *Cache[T]) DiffSince(window string) (float64, error) {
 	}
 
 	// 获取最新值
-	currentVal, ok := any(c.Points[len(c.Points)-1].Value).(float64)
-	if !ok {
+	currentVal, err := ConvertToFloat64(c.Points[len(c.Points)-1].Value)
+	if err != nil {
 		return 0, errors.New("value is not a float64 type")
 	}
 
@@ -428,7 +419,7 @@ func (c *Cache[T]) DiffSince(window string) (float64, error) {
 
 	for i := len(c.Points) - 1; i >= 0; i-- {
 		if c.Points[i].Timestamp != nil && c.Points[i].Timestamp.Before(targetTime) {
-			if val, ok := any(c.Points[i].Value).(float64); ok {
+			if val, err := ConvertToFloat64(c.Points[i].Value); err == nil {
 				baseVal = val
 				found = true
 				break
@@ -447,7 +438,7 @@ func (c *Cache[T]) DiffSince(window string) (float64, error) {
 	return difference, nil
 }
 
-func (c *Cache[T]) Count(window string) int {
+func (c *Cache) Count(window string) int {
 	points := c.getPointsInWindow(window)
 	if len(points) <= 1 {
 		return len(points)
@@ -458,7 +449,7 @@ func (c *Cache[T]) Count(window string) int {
 
 	for i := 1; i < len(points); i++ {
 		// 比较当前点与前一个点的值是否不同
-		if !isValueEqual(points[i].Value, points[i-1].Value) {
+		if !reflect.DeepEqual(points[i].Value, points[i-1].Value) {
 			changeCount++
 		}
 	}
@@ -468,7 +459,7 @@ func (c *Cache[T]) Count(window string) int {
 
 // getPointsInWindow gets points within the specified time window
 // This method will acquire its own read lock
-func (c *Cache[T]) getPointsInWindow(window string) []Point[T] {
+func (c *Cache) getPointsInWindow(window string) []Point {
 	if c == nil {
 		return nil
 	}
@@ -484,7 +475,7 @@ func (c *Cache[T]) getPointsInWindow(window string) []Point[T] {
 	duration, err := time.ParseDuration(window)
 	if err != nil {
 		// 如果解析失败，返回所有点的副本
-		result := make([]Point[T], len(c.Points))
+		result := make([]Point, len(c.Points))
 		copy(result, c.Points)
 		return result
 	}
@@ -492,7 +483,7 @@ func (c *Cache[T]) getPointsInWindow(window string) []Point[T] {
 	now := time.Now()
 	cutoffTime := now.Add(-duration)
 
-	var result []Point[T]
+	var result []Point
 	for _, point := range c.Points {
 		if point.Timestamp != nil && point.Timestamp.After(cutoffTime) {
 			result = append(result, point)
@@ -502,34 +493,9 @@ func (c *Cache[T]) getPointsInWindow(window string) []Point[T] {
 	return result
 }
 
-// 辅助函数：比较两个值是否相等，处理不同类型
-func isValueEqual[T float64 | bool | string | []byte](a, b T) bool {
-	// 使用 any 类型转换来处理不同类型的比较
-	aVal := any(a)
-	bVal := any(b)
-
-	switch aVal := aVal.(type) {
-	case []byte:
-		if bBytes, ok := bVal.([]byte); ok {
-			if len(aVal) != len(bBytes) {
-				return false
-			}
-			for i := range aVal {
-				if aVal[i] != bBytes[i] {
-					return false
-				}
-			}
-			return true
-		}
-		return false
-	default:
-		return aVal == bVal
-	}
-}
-
 // Only for bool type
 // newest point is true and second newest point is false
-func (c *Cache[T]) Rising() (bool, error) {
+func (c *Cache) Rising() (bool, error) {
 	if c == nil {
 		return false, nil
 	}
@@ -541,8 +507,8 @@ func (c *Cache[T]) Rising() (bool, error) {
 		return false, nil
 	}
 
-	if val, ok := any(c.Points[len(c.Points)-1].Value).(bool); ok && val {
-		if val, ok := any(c.Points[len(c.Points)-2].Value).(bool); ok && !val {
+	if val, ok := c.Points[len(c.Points)-1].Value.(bool); ok && val {
+		if val, ok := c.Points[len(c.Points)-2].Value.(bool); ok && !val {
 			return true, nil
 		} else {
 			return false, errors.New("value is not a bool type")
@@ -552,7 +518,7 @@ func (c *Cache[T]) Rising() (bool, error) {
 	}
 }
 
-func (c *Cache[T]) Falling() (bool, error) {
+func (c *Cache) Falling() (bool, error) {
 	if c == nil {
 		return false, nil
 	}
@@ -564,8 +530,8 @@ func (c *Cache[T]) Falling() (bool, error) {
 		return false, nil
 	}
 
-	if val, ok := any(c.Points[len(c.Points)-1].Value).(bool); ok && !val {
-		if val, ok := any(c.Points[len(c.Points)-2].Value).(bool); ok && val {
+	if val, ok := c.Points[len(c.Points)-1].Value.(bool); ok && !val {
+		if val, ok := c.Points[len(c.Points)-2].Value.(bool); ok && val {
 			return true, nil
 		} else {
 			return false, errors.New("value is not a bool type")
@@ -576,21 +542,21 @@ func (c *Cache[T]) Falling() (bool, error) {
 }
 
 // RC calculates Rising Count (false to true transitions) within the specified time window
-func (c *Cache[T]) RC(window string) (int, error) {
+func (c *Cache) RC(window string) (int, error) {
 	points := c.getPointsInWindow(window)
 	if len(points) < 2 {
 		return 0, nil
 	}
 
 	// 检查是否为 bool 类型
-	if _, ok := any(points[0].Value).(bool); !ok {
+	if _, ok := points[0].Value.(bool); !ok {
 		return 0, errors.New("value is not a bool type")
 	}
 
 	risingCount := 0
 	for i := 1; i < len(points); i++ {
-		prevVal, ok1 := any(points[i-1].Value).(bool)
-		currVal, ok2 := any(points[i].Value).(bool)
+		prevVal, ok1 := points[i-1].Value.(bool)
+		currVal, ok2 := points[i].Value.(bool)
 
 		if !ok1 || !ok2 {
 			return 0, errors.New("value is not a bool type")
@@ -606,21 +572,21 @@ func (c *Cache[T]) RC(window string) (int, error) {
 }
 
 // FC calculates Falling Count (true to false transitions) within the specified time window
-func (c *Cache[T]) FC(window string) (int, error) {
+func (c *Cache) FC(window string) (int, error) {
 	points := c.getPointsInWindow(window)
 	if len(points) < 2 {
 		return 0, nil
 	}
 
 	// 检查是否为 bool 类型
-	if _, ok := any(points[0].Value).(bool); !ok {
+	if _, ok := points[0].Value.(bool); !ok {
 		return 0, errors.New("value is not a bool type")
 	}
 
 	fallingCount := 0
 	for i := 1; i < len(points); i++ {
-		prevVal, ok1 := any(points[i-1].Value).(bool)
-		currVal, ok2 := any(points[i].Value).(bool)
+		prevVal, ok1 := points[i-1].Value.(bool)
+		currVal, ok2 := points[i].Value.(bool)
 
 		if !ok1 || !ok2 {
 			return 0, errors.New("value is not a bool type")
@@ -639,7 +605,7 @@ func (c *Cache[T]) FC(window string) (int, error) {
 // []byte value act like a whole bit array
 // index is the bit position, starting from 0
 // returns true if the bit at the specified index is set
-func (c *Cache[T]) Bit(index int) (bool, error) {
+func (c *Cache) Bit(index int) (bool, error) {
 	if c == nil {
 		return false, fmt.Errorf("cache is nil")
 	}
@@ -651,7 +617,7 @@ func (c *Cache[T]) Bit(index int) (bool, error) {
 		return false, fmt.Errorf("no data points available")
 	}
 
-	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
+	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
 		if index >= 0 && index < len(val)*8 {
 			byteIndex := index / 8
 			bitIndex := index % 8
@@ -670,7 +636,7 @@ func (c *Cache[T]) Bit(index int) (bool, error) {
 
 // ByteBit returns the i-th bit of the n-th byte in the latest []byte value
 // ByteBit(n, i) gets bit i (0-7) from byte n (0-based indexing)
-func (c *Cache[T]) ByteBit(n, i int) (bool, error) {
+func (c *Cache) ByteBit(n, i int) (bool, error) {
 	if c == nil {
 		return false, fmt.Errorf("cache is nil")
 	}
@@ -682,7 +648,7 @@ func (c *Cache[T]) ByteBit(n, i int) (bool, error) {
 		return false, fmt.Errorf("no data points available")
 	}
 
-	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
+	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
 		// 检查字节索引是否有效
 		if n < 0 || n >= len(val) {
 			return false, errors.New("byte index out of range")
@@ -702,7 +668,7 @@ func (c *Cache[T]) ByteBit(n, i int) (bool, error) {
 
 // BitAnd performs a bitwise AND operation between the latest []byte value and the mask
 // The []byte value is interpreted as a Little-Endian integer
-func (c *Cache[T]) BitAnd(mask uint64) (uint, error) {
+func (c *Cache) BitAnd(mask uint64) (uint, error) {
 	if c == nil {
 		return 0, fmt.Errorf("cache is nil")
 	}
@@ -714,7 +680,7 @@ func (c *Cache[T]) BitAnd(mask uint64) (uint, error) {
 		return 0, fmt.Errorf("no data points available")
 	}
 
-	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
+	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
 		var value uint64
 		// Interpret []byte as Little Endian integer
 		// Index 0 is the least significant byte
@@ -733,7 +699,7 @@ func (c *Cache[T]) BitAnd(mask uint64) (uint, error) {
 
 // BitOr performs a bitwise OR operation between the latest []byte value and the mask
 // The []byte value is interpreted as a Little-Endian integer
-func (c *Cache[T]) BitOr(mask uint64) (uint, error) {
+func (c *Cache) BitOr(mask uint64) (uint, error) {
 	if c == nil {
 		return 0, fmt.Errorf("cache is nil")
 	}
@@ -745,7 +711,7 @@ func (c *Cache[T]) BitOr(mask uint64) (uint, error) {
 		return 0, fmt.Errorf("no data points available")
 	}
 
-	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
+	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
 		var value uint64
 		// Interpret []byte as Little Endian integer
 		// Index 0 is the least significant byte
@@ -764,7 +730,7 @@ func (c *Cache[T]) BitOr(mask uint64) (uint, error) {
 
 // BitXor performs a bitwise XOR operation between the latest []byte value and the mask
 // The []byte value is interpreted as a Little-Endian integer
-func (c *Cache[T]) BitXor(mask uint64) (uint, error) {
+func (c *Cache) BitXor(mask uint64) (uint, error) {
 	if c == nil {
 		return 0, fmt.Errorf("cache is nil")
 	}
@@ -776,7 +742,7 @@ func (c *Cache[T]) BitXor(mask uint64) (uint, error) {
 		return 0, fmt.Errorf("no data points available")
 	}
 
-	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
+	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
 		var value uint64
 		// Interpret []byte as Little Endian integer
 		// Index 0 is the least significant byte
@@ -795,7 +761,7 @@ func (c *Cache[T]) BitXor(mask uint64) (uint, error) {
 
 // BitClear performs a bitwise AND NOT operation (bit clear) between the latest []byte value and the mask
 // The []byte value is interpreted as a Little-Endian integer
-func (c *Cache[T]) BitClear(mask uint64) (uint, error) {
+func (c *Cache) BitClear(mask uint64) (uint, error) {
 	if c == nil {
 		return 0, fmt.Errorf("cache is nil")
 	}
@@ -807,7 +773,7 @@ func (c *Cache[T]) BitClear(mask uint64) (uint, error) {
 		return 0, fmt.Errorf("no data points available")
 	}
 
-	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
+	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
 		var value uint64
 		// Interpret []byte as Little Endian integer
 		// Index 0 is the least significant byte
@@ -826,7 +792,7 @@ func (c *Cache[T]) BitClear(mask uint64) (uint, error) {
 
 // BitNot performs a bitwise NOT operation on the latest []byte value
 // The []byte value is interpreted as a Little-Endian integer
-func (c *Cache[T]) BitNot() (uint, error) {
+func (c *Cache) BitNot() (uint, error) {
 	if c == nil {
 		return 0, fmt.Errorf("cache is nil")
 	}
@@ -838,7 +804,7 @@ func (c *Cache[T]) BitNot() (uint, error) {
 		return 0, fmt.Errorf("no data points available")
 	}
 
-	if val, ok := any(c.Points[len(c.Points)-1].Value).([]byte); ok {
+	if val, ok := c.Points[len(c.Points)-1].Value.([]byte); ok {
 		var value uint64
 		// Interpret []byte as Little Endian integer
 		// Index 0 is the least significant byte
@@ -855,7 +821,7 @@ func (c *Cache[T]) BitNot() (uint, error) {
 	}
 }
 
-func (c *Cache[T]) AddPoint(value T, timestamp *time.Time) {
+func (c *Cache) AddPoint(value any, timestamp *time.Time) {
 	if c == nil {
 		return
 	}
@@ -878,17 +844,17 @@ func (c *Cache[T]) AddPoint(value T, timestamp *time.Time) {
 		}
 	}
 
-	c.Points = append(c.Points, Point[T]{Value: value, Timestamp: timestamp})
+	c.Points = append(c.Points, Point{Value: value, Timestamp: timestamp})
 	c.cleanExpiredPointsUnsafe()
 }
 
-func (c *Cache[T]) cleanExpiredPointsUnsafe() {
+func (c *Cache) cleanExpiredPointsUnsafe() {
 	if c.ExpireDuration <= 0 || len(c.Points) <= 1 {
 		return
 	}
 
 	now := time.Now()
-	validPoints := make([]Point[T], 0, len(c.Points))
+	validPoints := make([]Point, 0, len(c.Points))
 
 	for _, point := range c.Points {
 		if point.Timestamp != nil && now.Sub(*point.Timestamp) <= c.ExpireDuration {

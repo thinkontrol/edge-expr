@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/expr-lang/expr/vm"
+	"github.com/samber/lo"
 )
 
 type Variable struct {
@@ -25,8 +26,8 @@ type Variable struct {
 	PublishCycle  *time.Duration `json:"-"`
 	CacheDuration *time.Duration `json:"-"`
 
-	Cache      any         `json:"-"`
-	LatestPush any         `json:"-"`
+	Cache      *Cache      `json:"-"`
+	LatestPush *Point      `json:"-"`
 	Program    *vm.Program `json:"-"`
 	// Cache instances can be created externally when needed
 	// This allows the Variable to be non-generic while still supporting caching
@@ -91,7 +92,10 @@ func (v *Variable) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("invalid cache format: %v", err)
 		}
 	}
-	v.Cache = v.createCache() // Create cache instance based on DataType and CacheDuration
+	if v.CacheDuration == nil {
+		v.CacheDuration = lo.ToPtr(time.Minute)
+	}
+	v.Cache = NewCache(*v.CacheDuration) // Create cache instance based on DataType and CacheDuration
 	return nil
 }
 
@@ -100,39 +104,6 @@ func Check[T any](v *T) T {
 }
 
 func (v *Variable) Hash() string {
-	// Implement a hash function to generate a unique identifier for the variable
-	// log.Debugf("Key: %s, Connection: %s, Address: %s, Script: %s, DataTypeStr: %s, Writable: %t", v.Key, v.Connection, v.Address, v.Script, v.DataTypeStr, v.Writable)
-	// if v.DiffThreshold != nil {
-	// 	log.Debugf("DiffThreshold: %0.8f", *v.DiffThreshold)
-	// } else {
-	// 	log.Debugf("DiffThreshold: nil")
-	// }
-	// if v.PctThreshold != nil {
-	// 	log.Debugf("PctThreshold: %0.8f", *v.PctThreshold)
-	// } else {
-	// 	log.Debugf("PctThreshold: nil")
-	// }
-	// if v.Scale != nil {
-	// 	log.Debugf("Scale: %0.8f", *v.Scale)
-	// } else {
-	// 	log.Debugf("Scale: nil")
-	// }
-	// if v.Offset != nil {
-	// 	log.Debugf("Offset: %0.8f", *v.Offset)
-	// } else {
-	// 	log.Debugf("Offset: nil")
-	// }
-	// if v.CacheDuration != nil {
-	// 	log.Debugf("CacheDuration: %s", v.CacheDuration.String())
-	// } else {
-	// 	log.Debugf("CacheDuration: nil")
-	// }
-	// if v.PublishCycle != nil {
-	// 	log.Debugf("PublishCycle: %s", v.PublishCycle.String())
-	// } else {
-	// 	log.Debugf("PublishCycle: nil")
-	// }
-
 	hash := md5.New()
 	hash.Write([]byte(v.Key))
 	hash.Write([]byte(v.Connection))
@@ -165,41 +136,7 @@ func (v *Variable) Read() (any, *time.Time) {
 	if v.Cache == nil {
 		return nil, nil
 	}
-	switch cache := v.Cache.(type) {
-	case *Cache[float64]:
-		return cache.Value(), cache.Timestamp()
-	case *Cache[bool]:
-		return cache.Value(), cache.Timestamp()
-	case *Cache[string]:
-		return cache.Value(), cache.Timestamp()
-	case *Cache[[]byte]:
-		return cache.Value(), cache.Timestamp()
-		// Supported cache types
-	default:
-		return nil, nil // Unsupported cache type
-	}
-	// switch v.DataType {
-	// case DataTypeFloat32, DataTypeFloat64, DataTypeInt8, DataTypeUInt8, DataTypeInt16, DataTypeUInt16,
-	// 	DataTypeInt32, DataTypeUInt32, DataTypeInt64, DataTypeUInt64:
-	// 	if cache, ok := v.Cache.(*Cache[float64]); ok {
-	// 		return cache.Value(), cache.Timestamp()
-	// 	}
-	// case DataTypeBool:
-	// 	if cache, ok := v.Cache.(*Cache[bool]); ok {
-	// 		return cache.Value(), cache.Timestamp()
-	// 	}
-	// case DataTypeString:
-	// 	if cache, ok := v.Cache.(*Cache[string]); ok {
-	// 		return cache.Value(), cache.Timestamp()
-	// 	}
-	// case DataTypeByte, DataTypeWord, DataTypeDWord:
-	// 	if cache, ok := v.Cache.(*Cache[[]byte]); ok {
-	// 		return cache.Value(), cache.Timestamp()
-	// 	}
-	// default:
-	// 	return nil, nil
-	// }
-	// return nil, nil // Unsupported data type or cache type mismatch
+	return v.Cache.Value(), v.Cache.Timestamp()
 }
 
 func (v *Variable) ValueUnScale(value interface{}) interface{} {
@@ -226,89 +163,6 @@ func (v *Variable) ValueUnScale(value interface{}) interface{} {
 }
 
 func (v *Variable) WriteValue(value any, t *time.Time) error {
-	switch v.DataType {
-	case DataTypeFloat32, DataTypeFloat64, DataTypeInt8, DataTypeUInt8, DataTypeInt16, DataTypeUInt16,
-		DataTypeInt32, DataTypeUInt32, DataTypeInt64, DataTypeUInt64:
-		floatValue, err := ConvertToFloat64(value)
-		if err != nil {
-			return err
-		}
-		if v.Scale != nil {
-			floatValue *= *v.Scale
-		}
-		if v.Offset != nil {
-			floatValue += *v.Offset
-		}
-		cache, ok := v.Cache.(*Cache[float64])
-		if !ok {
-			return fmt.Errorf("cache type mismatch for variable %s, expected Cache[float64]", v.Key)
-		}
-		cache.AddPoint(floatValue, t)
-	case DataTypeBool:
-		boolValue, err := v.DataType.ConvertFromAny(value)
-		if err != nil {
-			return fmt.Errorf("failed to convert value to bool for variable %s: %v", v.Key, err)
-		}
-		cache, ok := v.Cache.(*Cache[bool])
-		if !ok {
-			return fmt.Errorf("cache type mismatch for variable %s, expected Cache[bool]", v.Key)
-		}
-		cache.AddPoint(boolValue.(bool), t)
-	case DataTypeString:
-		stringValue, err := v.DataType.ConvertFromAny(value)
-		if err != nil {
-			return fmt.Errorf("failed to convert value to string for variable %s: %v", v.Key, err)
-		}
-		cache, ok := v.Cache.(*Cache[string])
-		if !ok {
-			return fmt.Errorf("cache type mismatch for variable %s, expected Cache[string]", v.Key)
-		}
-		cache.AddPoint(stringValue.(string), t)
-	case DataTypeByte, DataTypeWord, DataTypeDWord:
-		_bytesValue, err := v.DataType.ConvertFromAny(value)
-		if err != nil {
-			return fmt.Errorf("failed to convert value to bytes for variable %s: %v", v.Key, err)
-		}
-		bytesValue, err := ConvertToBytes(_bytesValue)
-		if err != nil {
-			return fmt.Errorf("failed to convert value to bytes for variable %s: %v", v.Key, err)
-		}
-		cache, ok := v.Cache.(*Cache[[]byte])
-		if !ok {
-			return fmt.Errorf("cache type mismatch for variable %s, expected Cache[[]byte]", v.Key)
-		}
-		cache.AddPoint(bytesValue, t)
-	default:
-		return fmt.Errorf("unsupported data type %s for writing value", v.DataType)
-	}
+	v.Cache.AddPoint(value, t)
 	return nil
-}
-
-func (v *Variable) createCache() any {
-	// 根据 DataType 创建相应类型的缓存
-	switch v.DataType {
-	case DataTypeFloat32, DataTypeFloat64, DataTypeInt8, DataTypeUInt8, DataTypeInt16, DataTypeUInt16,
-		DataTypeInt32, DataTypeUInt32, DataTypeInt64, DataTypeUInt64:
-		if v.CacheDuration != nil {
-			return NewCache[float64](*v.CacheDuration)
-		}
-		return NewCache[float64](time.Minute)
-	case DataTypeBool:
-		if v.CacheDuration != nil {
-			return NewCache[bool](*v.CacheDuration)
-		}
-		return NewCache[bool](time.Minute)
-	case DataTypeString:
-		if v.CacheDuration != nil {
-			return NewCache[string](*v.CacheDuration)
-		}
-		return NewCache[string](time.Minute)
-	case DataTypeByte, DataTypeWord, DataTypeDWord:
-		if v.CacheDuration != nil {
-			return NewCache[[]byte](*v.CacheDuration)
-		}
-		return NewCache[[]byte](time.Minute)
-	default:
-		return nil // Unsupported data type for caching
-	}
 }
