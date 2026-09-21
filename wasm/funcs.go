@@ -15,6 +15,8 @@ var BitFunc = expr.Function(
 			return nil, fmt.Errorf("bitOn() 需要 2 个参数")
 		}
 
+		var bitValue uint64
+		bitWidth := int64(0)
 		var bb []byte
 
 		switch v := params[0].(type) {
@@ -28,6 +30,13 @@ var BitFunc = expr.Function(
 			}
 		case []byte:
 			bb = v
+			bitWidth = int64(len(bb) * 8)
+		case uint32:
+			bitValue = uint64(v)
+			bitWidth = 32
+		case uint64:
+			bitValue = v
+			bitWidth = 64
 		default:
 			return nil, fmt.Errorf("不支持的类型: %T", params[0])
 		}
@@ -37,12 +46,14 @@ var BitFunc = expr.Function(
 			return nil, err
 		}
 
-		if pos < 0 || pos/8 >= int64(len(bb)) {
-			return nil, fmt.Errorf("position %d 超出范围 (字节长度: %d)", pos, len(bb))
+		if pos < 0 || pos >= bitWidth {
+			return nil, fmt.Errorf("position %d 超出范围", pos)
 		}
 
-		// 取出对应的 Bit
-		return (bb[pos/8] & (1 << (pos % 8))) != 0, nil
+		if bb != nil {
+			return (bb[pos/8] & (1 << (pos % 8))) != 0, nil
+		}
+		return (bitValue & (uint64(1) << pos)) != 0, nil
 	},
 )
 

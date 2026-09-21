@@ -135,30 +135,38 @@ func (v *Variable) Read() (any, *time.Time) {
 	return v.Cache.Value(), v.Cache.Timestamp()
 }
 
-func (v *Variable) ValueUnScale(value interface{}) interface{} {
-	switch val := value.(type) {
-	case float64:
-		if v.Scale != nil && *v.Scale != 0 {
-			val /= *v.Scale
+func (v *Variable) ValueUnScale(value interface{}) (interface{}, error) {
+	if v.Scale != nil || v.Offset != nil {
+		if val, err := ConvertToFloat64(value); err == nil {
+			if v.Offset != nil {
+				val -= *v.Offset
+			}
+			if v.Scale != nil {
+				val /= *v.Scale
+			}
+			return v.DataType.ConvertFromAny(val)
+		} else {
+			return nil, err
 		}
-		if v.Offset != nil {
-			val -= *v.Offset
-		}
-		return val
-	case float32:
-		if v.Scale != nil && *v.Scale != 0 {
-			val /= float32(*v.Scale)
-		}
-		if v.Offset != nil {
-			val -= float32(*v.Offset)
-		}
-		return val
-	default:
-		return value
 	}
+	return value, nil
 }
 
 func (v *Variable) WriteValue(value any, t *time.Time) error {
-	v.Cache.AddPoint(value, t)
+	if v.Scale != nil || v.Offset != nil {
+		if val, err := ConvertToFloat64(value); err == nil {
+			if v.Scale != nil {
+				val *= *v.Scale
+			}
+			if v.Offset != nil {
+				val += *v.Offset
+			}
+			v.Cache.AddPoint(val, t)
+		} else {
+			return err
+		}
+	} else {
+		v.Cache.AddPoint(value, t)
+	}
 	return nil
 }
