@@ -33,20 +33,6 @@ func NewCache(expireDuration *time.Duration) *Cache {
 	return cache
 }
 
-// func (c *Cache) PushValue() *PushValue {
-// 	c.mu.RLock()
-// 	defer c.mu.RUnlock()
-
-// 	if len(c.Points) == 0 {
-// 		return nil
-// 	}
-// 	return &PushValue{
-// 		// Key:       key,
-// 		Value:     c.Points[len(c.Points)-1].Value,
-// 		Timestamp: c.Points[len(c.Points)-1].Timestamp,
-// 	}
-// }
-
 func (c *Cache) Value() any {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -56,16 +42,6 @@ func (c *Cache) Value() any {
 	}
 	return c.Points[len(c.Points)-1].Value
 }
-
-// func (c *Cache) Latest() any {
-// 	c.mu.RLock()
-// 	defer c.mu.RUnlock()
-
-// 	if len(c.Points) == 0 {
-// 		return nil
-// 	}
-// 	return c.Points[len(c.Points)-1].Value
-// }
 
 // Timestamp returns the timestamp of the latest value
 func (c *Cache) Timestamp() *time.Time {
@@ -82,32 +58,13 @@ func (c *Cache) Timestamp() *time.Time {
 	return c.Points[len(c.Points)-1].Timestamp
 }
 
-// Point returns the latest point (value and timestamp)
-// func (c *Cache) Point() *Point {
-// 	if c == nil {
-// 		return nil
-// 	}
-
-// 	c.mu.RLock()
-// 	defer c.mu.RUnlock()
-
-// 	if len(c.Points) == 0 {
-// 		return nil
-// 	}
-// 	// 返回最新点的副本
-// 	latest := c.Points[len(c.Points)-1]
-// 	return &latest
-// }
-
 // Len returns the number of points in the cache
 func (c *Cache) Len() int {
 	if c == nil {
 		return 0
 	}
-
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-
 	return len(c.Points)
 }
 
@@ -266,7 +223,7 @@ func (c *Cache) DiffWith(val float64) (float64, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	if len(c.Points) < 21 {
+	if len(c.Points) < 1 {
 		return 0, fmt.Errorf("not enough data points")
 	}
 
